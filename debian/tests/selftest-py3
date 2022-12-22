@@ -1,0 +1,8 @@
+#!/bin/sh
+set -e
+
+mkdir -p $ADTTMP/Tests
+cp -p selftest.py $ADTTMP
+cp -a Tests/images $ADTTMP/Tests
+cd $ADTTMP
+python3 selftest.py

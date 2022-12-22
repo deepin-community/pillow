@@ -1,0 +1,6 @@
+Tests: selftest-py3
+Depends: @
+
+#Tests: upstream-py3
+#Restrictions: allow-stderr
+#Depends: @, webp, python3-pytest

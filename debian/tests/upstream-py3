@@ -1,0 +1,26 @@
+#!/bin/sh
+set -e
+
+if [ -z "$ADTTMP" ]; then
+  ADTTMP=tmp
+  mkdir -p $ADTTMP
+fi
+SRCDIR=$(pwd)
+ln -sf $SRCDIR/Tests $ADTTMP/Tests
+
+dwebp -ppm Tests/images/hopper.webp -o $ADTTMP/hopper_webp.ppm 2>&1
+
+tests=$(echo Tests/test*.py)
+machine=$(uname -m)
+for t in $tests; do
+  case $(basename $t .py)/$machine in
+    test_imagedraw/i?86) ;;
+    test_font_pcf.py/i?86|test_font_pcf.py/arm*) ;;
+    *)
+      pillow_tests="$pillow_tests $t";;
+  esac
+done
+echo Running tests: $pillow_tests
+
+cd $ADTTMP
+python3 $SRCDIR/test-installed.py --processes=1 --process-timeout=90 $pillow_tests

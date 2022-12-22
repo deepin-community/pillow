@@ -1,0 +1,24 @@
+--- a/Tests/test_file_webp.py
++++ b/Tests/test_file_webp.py
+@@ -13,6 +13,8 @@ from .helper import (
+     skip_unless_feature,
+ )
+ 
++import os
++
+ try:
+     from PIL import _webp
+ 
+@@ -58,7 +60,11 @@ class TestFileWebp:
+ 
+             # generated with:
+             # dwebp -ppm ../../Tests/images/hopper.webp -o hopper_webp_bits.ppm
+-            assert_image_similar_tofile(image, "Tests/images/hopper_webp_bits.ppm", 1.0)
++            if 'ADTTMP' in os.environ:
++                target_file = os.path.join(os.environ['ADTTMP'], 'hopper_webp.ppm')
++            else:
++                target_file = 'Tests/images/hopper_webp_bits.ppm'
++            assert_image_similar_tofile(image, target_file, 1.0)
+ 
+     def _roundtrip(self, tmp_path, mode, epsilon, args={}):
+         temp_file = str(tmp_path / "temp.webp")

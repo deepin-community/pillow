@@ -1,0 +1,10 @@
+--- a/docs/conf.py
++++ b/docs/conf.py
+@@ -31,7 +31,6 @@ needs_sphinx = "2.4"
+ extensions = [
+     "sphinx_copybutton",
+     "sphinx_issues",
+-    "sphinx_removed_in",
+     "sphinx.ext.autodoc",
+     "sphinx.ext.intersphinx",
+     "sphinx.ext.viewcode",
