@@ -1,8 +1,10 @@
+import warnings
+
 import pytest
 
 from PIL import Image, PsdImagePlugin
 
-from .helper import assert_image_similar, hopper, is_pypy
+from .helper import assert_image_equal_tofile, assert_image_similar, hopper, is_pypy
 
 test_file = "Tests/images/hopper.psd"
 
@@ -29,20 +31,16 @@ def test_unclosed_file():
 
 
 def test_closed_file():
-    with pytest.warns(None) as record:
+    with warnings.catch_warnings():
         im = Image.open(test_file)
         im.load()
         im.close()
 
-    assert not record
-
 
 def test_context_manager():
-    with pytest.warns(None) as record:
+    with warnings.catch_warnings():
         with Image.open(test_file) as im:
             im.load()
-
-    assert not record
 
 
 def test_invalid_file():
@@ -57,9 +55,10 @@ def test_n_frames():
         assert im.n_frames == 1
         assert not im.is_animated
 
-    with Image.open(test_file) as im:
-        assert im.n_frames == 2
-        assert im.is_animated
+    for path in [test_file, "Tests/images/negative_layer_count.psd"]:
+        with Image.open(path) as im:
+            assert im.n_frames == 2
+            assert im.is_animated
 
 
 def test_eoferror():
@@ -108,6 +107,11 @@ def test_open_after_exclusive_load():
         im.load()
 
 
+def test_rgba():
+    with Image.open("Tests/images/rgba.psd") as im:
+        assert_image_equal_tofile(im, "Tests/images/imagedraw_square.png")
+
+
 def test_icc_profile():
     with Image.open(test_file) as im:
         assert "icc_profile" in im.info
@@ -122,7 +126,7 @@ def test_no_icc_profile():
 
 
 def test_combined_larger_than_size():
-    # The 'combined' sizes of the individual parts is larger than the
+    # The combined size of the individual parts is larger than the
     # declared 'size' of the extra data field, resulting in a backwards seek.
 
     # If we instead take the 'size' of the extra data field as the source of truth,

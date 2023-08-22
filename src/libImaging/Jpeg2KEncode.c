@@ -110,8 +110,15 @@ j2k_pack_i16(Imaging im, UINT8 *buf, unsigned x0, unsigned y0, unsigned w, unsig
     for (y = 0; y < h; ++y) {
         UINT8 *data = (UINT8 *)(im->image[y + y0] + x0);
         for (x = 0; x < w; ++x) {
-            *ptr++ = *data++;
-            *ptr++ = *data++;
+#ifdef WORDS_BIGENDIAN
+            ptr[0] = data[1];
+            ptr[1] = data[0];
+#else
+            ptr[0] = data[0];
+            ptr[1] = data[1];
+#endif
+            ptr += 2;
+            data += 2;
         }
     }
 }
@@ -301,13 +308,7 @@ j2k_encode_entry(Imaging im, ImagingCodecState state) {
         components = 1;
         color_space = OPJ_CLRSPC_GRAY;
         pack = j2k_pack_l;
-    } else if (strcmp(im->mode, "I;16") == 0) {
-        components = 1;
-        color_space = OPJ_CLRSPC_GRAY;
-        pack = j2k_pack_i16;
-        prec = 16;
-        bpp = 12;
-    } else if (strcmp(im->mode, "I;16B") == 0) {
+    } else if (strcmp(im->mode, "I;16") == 0 || strcmp(im->mode, "I;16B") == 0) {
         components = 1;
         color_space = OPJ_CLRSPC_GRAY;
         pack = j2k_pack_i16;
@@ -342,7 +343,7 @@ j2k_encode_entry(Imaging im, ImagingCodecState state) {
         image_params[n].x0 = image_params[n].y0 = 0;
         image_params[n].prec = prec;
         image_params[n].bpp = bpp;
-        image_params[n].sgnd = 0;
+        image_params[n].sgnd = context->sgnd == 0 ? 0 : 1;
     }
 
     image = opj_image_create(components, image_params, color_space);
@@ -434,6 +435,9 @@ j2k_encode_entry(Imaging im, ImagingCodecState state) {
     }
 
     params.irreversible = context->irreversible;
+    if (components == 3) {
+        params.tcp_mct = context->mct;
+    }
 
     params.prog_order = context->progression;
 

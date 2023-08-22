@@ -58,6 +58,15 @@ def test_sanity():
         assert image2_scale2.format == "EPS"
 
 
+@pytest.mark.skipif(not HAS_GHOSTSCRIPT, reason="Ghostscript not available")
+def test_load():
+    with Image.open(FILE1) as im:
+        assert im.load()[0, 0] == (255, 255, 255)
+
+        # Test again now that it has already been loaded once
+        assert im.load()[0, 0] == (255, 255, 255)
+
+
 def test_invalid_file():
     invalid_file = "Tests/images/flower.jpg"
 
@@ -97,18 +106,21 @@ def test_showpage():
 
 
 @pytest.mark.skipif(not HAS_GHOSTSCRIPT, reason="Ghostscript not available")
+def test_transparency():
+    with Image.open("Tests/images/reqd_showpage.eps") as plot_image:
+        plot_image.load(transparency=True)
+        assert plot_image.mode == "RGBA"
+
+        with Image.open("Tests/images/reqd_showpage_transparency.png") as target:
+            #  fonts could be slightly different
+            assert_image_similar(plot_image, target, 6)
+
+
+@pytest.mark.skipif(not HAS_GHOSTSCRIPT, reason="Ghostscript not available")
 def test_file_object(tmp_path):
     # issue 479
     with Image.open(FILE1) as image1:
         with open(str(tmp_path / "temp.eps"), "wb") as fh:
-            image1.save(fh, "EPS")
-
-
-@pytest.mark.skipif(not HAS_GHOSTSCRIPT, reason="Ghostscript not available")
-def test_iobase_object(tmp_path):
-    # issue 479
-    with Image.open(FILE1) as image1:
-        with open(str(tmp_path / "temp_iobase.eps"), "wb") as fh:
             image1.save(fh, "EPS")
 
 
@@ -124,6 +136,11 @@ def test_bytesio_object():
             image1_scale1_compare = image1_scale1_compare.convert("RGB")
         image1_scale1_compare.load()
         assert_image_similar(img, image1_scale1_compare, 5)
+
+
+def test_1_mode():
+    with Image.open("Tests/images/1.eps") as im:
+        assert im.mode == "1"
 
 
 def test_image_mode_not_supported(tmp_path):
@@ -178,25 +195,23 @@ def test_render_scale2():
 
 
 @pytest.mark.skipif(not HAS_GHOSTSCRIPT, reason="Ghostscript not available")
-def test_resize():
-    files = [FILE1, FILE2, "Tests/images/illu10_preview.eps"]
-    for fn in files:
-        with Image.open(fn) as im:
-            new_size = (100, 100)
-            im = im.resize(new_size)
-            assert im.size == new_size
+@pytest.mark.parametrize("filename", (FILE1, FILE2, "Tests/images/illu10_preview.eps"))
+def test_resize(filename):
+    with Image.open(filename) as im:
+        new_size = (100, 100)
+        im = im.resize(new_size)
+        assert im.size == new_size
 
 
 @pytest.mark.skipif(not HAS_GHOSTSCRIPT, reason="Ghostscript not available")
-def test_thumbnail():
+@pytest.mark.parametrize("filename", (FILE1, FILE2))
+def test_thumbnail(filename):
     # Issue #619
     # Arrange
-    files = [FILE1, FILE2]
-    for fn in files:
-        with Image.open(FILE1) as im:
-            new_size = (100, 100)
-            im.thumbnail(new_size)
-            assert max(im.size) == max(new_size)
+    with Image.open(filename) as im:
+        new_size = (100, 100)
+        im.thumbnail(new_size)
+        assert max(im.size) == max(new_size)
 
 
 def test_read_binary_preview():
@@ -241,20 +256,19 @@ def test_readline(tmp_path):
         _test_readline_file_psfile(s, ending)
 
 
-def test_open_eps():
-    # https://github.com/python-pillow/Pillow/issues/1104
-    # Arrange
-    FILES = [
+@pytest.mark.parametrize(
+    "filename",
+    (
         "Tests/images/illu10_no_preview.eps",
         "Tests/images/illu10_preview.eps",
         "Tests/images/illuCS6_no_preview.eps",
         "Tests/images/illuCS6_preview.eps",
-    ]
-
-    # Act / Assert
-    for filename in FILES:
-        with Image.open(filename) as img:
-            assert img.mode == "RGB"
+    ),
+)
+def test_open_eps(filename):
+    # https://github.com/python-pillow/Pillow/issues/1104
+    with Image.open(filename) as img:
+        assert img.mode == "RGB"
 
 
 @pytest.mark.skipif(not HAS_GHOSTSCRIPT, reason="Ghostscript not available")

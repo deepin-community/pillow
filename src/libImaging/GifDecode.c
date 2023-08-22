@@ -125,7 +125,7 @@ ImagingGifDecode(Imaging im, ImagingCodecState state, UINT8 *buffer, Py_ssize_t 
 
                     context->blocksize--;
 
-                    /* New bits are shifted in from from the left. */
+                    /* New bits are shifted in from the left. */
                     context->bitbuffer |= (INT32)c << context->bitcount;
                     context->bitcount += 8;
 
@@ -248,7 +248,7 @@ ImagingGifDecode(Imaging im, ImagingCodecState state, UINT8 *buffer, Py_ssize_t 
         /* To squeeze some extra pixels out of this loop, we test for
            some common cases and handle them separately. */
 
-        /* If we have transparency, we need to use the regular loop. */
+        /* This cannot be used if there is transparency */
         if (context->transparency == -1) {
             if (i == 1) {
                 if (state->x < state->xsize - 1) {

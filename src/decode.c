@@ -235,7 +235,7 @@ _setfd(ImagingDecoderObject *decoder, PyObject *args) {
 }
 
 static PyObject *
-_get_pulls_fd(ImagingDecoderObject *decoder) {
+_get_pulls_fd(ImagingDecoderObject *decoder, void *closure) {
     return PyBool_FromLong(decoder->pulls_fd);
 }
 
@@ -376,11 +376,8 @@ PyImaging_BcnDecoderNew(PyObject *self, PyObject *args) {
             actual = "L";
             break;
         case 5: /* BC5: 2-channel 8-bit via 2 BC3 alpha blocks */
-            actual = "RGB";
-            break;
         case 6: /* BC6: 3-channel 16-bit float */
-            /* TODO: support 4-channel floating point images */
-            actual = "RGBAF";
+            actual = "RGB";
             break;
         default:
             PyErr_SetString(PyExc_ValueError, "block compression type unknown");

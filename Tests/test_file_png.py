@@ -1,5 +1,6 @@
 import re
 import sys
+import warnings
 import zlib
 from io import BytesIO
 
@@ -13,14 +14,13 @@ from .helper import (
     assert_image_equal,
     assert_image_equal_tofile,
     hopper,
-    is_big_endian,
     is_win32,
     mark_if_feature_version,
     skip_unless_feature,
 )
 
 try:
-    import defusedxml.ElementTree as ElementTree
+    from defusedxml import ElementTree
 except ImportError:
     ElementTree = None
 
@@ -77,7 +77,6 @@ class TestFilePng:
                     png.crc(cid, s)
         return chunks
 
-    @pytest.mark.xfail(is_big_endian(), reason="Fails on big-endian")
     def test_sanity(self, tmp_path):
 
         # internal version number
@@ -333,9 +332,8 @@ class TestFilePng:
 
         with Image.open(TEST_PNG_FILE) as im:
             # Assert that there is no unclosed file warning
-            with pytest.warns(None) as record:
+            with warnings.catch_warnings():
                 im.verify()
-            assert not record
 
         with Image.open(TEST_PNG_FILE) as im:
             im.load()
@@ -637,6 +635,19 @@ class TestFilePng:
 
             assert_image_equal_tofile(im, "Tests/images/bw_gradient.png")
 
+    @pytest.mark.parametrize(
+        "cid", (b"IHDR", b"sRGB", b"pHYs", b"acTL", b"fcTL", b"fdAT")
+    )
+    def test_truncated_chunks(self, cid):
+        fp = BytesIO()
+        with PngImagePlugin.PngStream(fp) as png:
+            with pytest.raises(ValueError):
+                png.call(cid, 0, 0)
+
+            ImageFile.LOAD_TRUNCATED_IMAGES = True
+            png.call(cid, 0, 0)
+            ImageFile.LOAD_TRUNCATED_IMAGES = False
+
     def test_specify_bits(self, tmp_path):
         im = hopper("P")
 
@@ -695,9 +706,17 @@ class TestFilePng:
         assert exif[274] == 3
 
     def test_exif_save(self, tmp_path):
+        # Test exif is not saved from info
+        test_file = str(tmp_path / "temp.png")
         with Image.open("Tests/images/exif.png") as im:
-            test_file = str(tmp_path / "temp.png")
             im.save(test_file)
+
+        with Image.open(test_file) as reloaded:
+            assert reloaded._getexif() is None
+
+        # Test passing in exif
+        with Image.open("Tests/images/exif.png") as im:
+            im.save(test_file, exif=im.getexif())
 
         with Image.open(test_file) as reloaded:
             exif = reloaded._getexif()
@@ -709,7 +728,7 @@ class TestFilePng:
     def test_exif_from_jpg(self, tmp_path):
         with Image.open("Tests/images/pil_sample_rgb.jpg") as im:
             test_file = str(tmp_path / "temp.png")
-            im.save(test_file)
+            im.save(test_file, exif=im.getexif())
 
         with Image.open(test_file) as reloaded:
             exif = reloaded._getexif()
@@ -757,8 +776,8 @@ class TestFilePng:
 
         if buffer:
             mystdout = mystdout.buffer
-        reloaded = Image.open(mystdout)
-        assert_image_equal_tofile(reloaded, TEST_PNG_FILE)
+        with Image.open(mystdout) as reloaded:
+            assert_image_equal_tofile(reloaded, TEST_PNG_FILE)
 
 
 @pytest.mark.skipif(is_win32(), reason="Requires Unix or macOS")

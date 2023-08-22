@@ -149,14 +149,13 @@ _encode(ImagingEncoderObject *encoder, PyObject *args) {
 }
 
 static PyObject *
-_encode_to_pyfd(ImagingEncoderObject *encoder, PyObject *args) {
+_encode_to_pyfd(ImagingEncoderObject *encoder) {
     PyObject *result;
     int status;
 
     if (!encoder->pushes_fd) {
         // UNDONE, appropriate errcode???
         result = Py_BuildValue("ii", 0, IMAGING_CODEC_CONFIG);
-        ;
         return result;
     }
 
@@ -299,7 +298,7 @@ _setfd(ImagingEncoderObject *encoder, PyObject *args) {
 }
 
 static PyObject *
-_get_pushes_fd(ImagingEncoderObject *encoder) {
+_get_pushes_fd(ImagingEncoderObject *encoder, void *closure) {
     return PyBool_FromLong(encoder->pushes_fd);
 }
 
@@ -307,7 +306,7 @@ static struct PyMethodDef methods[] = {
     {"encode", (PyCFunction)_encode, METH_VARARGS},
     {"cleanup", (PyCFunction)_encode_cleanup, METH_VARARGS},
     {"encode_to_file", (PyCFunction)_encode_to_file, METH_VARARGS},
-    {"encode_to_pyfd", (PyCFunction)_encode_to_pyfd, METH_VARARGS},
+    {"encode_to_pyfd", (PyCFunction)_encode_to_pyfd, METH_NOARGS},
     {"setimage", (PyCFunction)_setimage, METH_VARARGS},
     {"setfd", (PyCFunction)_setfd, METH_VARARGS},
     {NULL, NULL} /* sentinel */
@@ -808,6 +807,12 @@ PyImaging_LibTiffEncoderNew(PyObject *self, PyObject *args) {
                         av + stride * 2);
                     free(av);
                 }
+            } else if (key_int == TIFFTAG_YCBCRSUBSAMPLING) {
+                status = ImagingLibTiffSetField(
+                    &encoder->state,
+                    (ttag_t)key_int,
+                    (UINT16)PyLong_AsLong(PyTuple_GetItem(value, 0)),
+                    (UINT16)PyLong_AsLong(PyTuple_GetItem(value, 1)));
             } else if (type == TIFF_SHORT) {
                 UINT16 *av;
                 /* malloc check ok, calloc checks for overflow */
@@ -1043,6 +1048,8 @@ PyImaging_JpegEncoderNew(PyObject *self, PyObject *args) {
     PyObject *qtables = NULL;
     unsigned int *qarrays = NULL;
     int qtablesLen = 0;
+    char *comment = NULL;
+    Py_ssize_t comment_size;
     char *extra = NULL;
     Py_ssize_t extra_size;
     char *rawExif = NULL;
@@ -1050,7 +1057,7 @@ PyImaging_JpegEncoderNew(PyObject *self, PyObject *args) {
 
     if (!PyArg_ParseTuple(
             args,
-            "ss|nnnnnnnnOy#y#",
+            "ss|nnnnnnnnOz#y#y#",
             &mode,
             &rawmode,
             &quality,
@@ -1062,6 +1069,8 @@ PyImaging_JpegEncoderNew(PyObject *self, PyObject *args) {
             &ydpi,
             &subsampling,
             &qtables,
+            &comment,
+            &comment_size,
             &extra,
             &extra_size,
             &rawExif,
@@ -1085,13 +1094,28 @@ PyImaging_JpegEncoderNew(PyObject *self, PyObject *args) {
         return NULL;
     }
 
-    // Freed in JpegEncode, Case 5
+    // Freed in JpegEncode, Case 6
     qarrays = get_qtables_arrays(qtables, &qtablesLen);
+
+    if (comment && comment_size > 0) {
+        /* malloc check ok, length is from python parsearg */
+        char *p = malloc(comment_size);  // Freed in JpegEncode, Case 6
+        if (!p) {
+            return ImagingError_MemoryError();
+        }
+        memcpy(p, comment, comment_size);
+        comment = p;
+    } else {
+        comment = NULL;
+    }
 
     if (extra && extra_size > 0) {
         /* malloc check ok, length is from python parsearg */
-        char *p = malloc(extra_size);  // Freed in JpegEncode, Case 5
+        char *p = malloc(extra_size);  // Freed in JpegEncode, Case 6
         if (!p) {
+            if (comment) {
+                free(comment);
+            }
             return ImagingError_MemoryError();
         }
         memcpy(p, extra, extra_size);
@@ -1102,8 +1126,11 @@ PyImaging_JpegEncoderNew(PyObject *self, PyObject *args) {
 
     if (rawExif && rawExifLen > 0) {
         /* malloc check ok, length is from python parsearg */
-        char *pp = malloc(rawExifLen);  // Freed in JpegEncode, Case 5
+        char *pp = malloc(rawExifLen);  // Freed in JpegEncode, Case 6
         if (!pp) {
+            if (comment) {
+                free(comment);
+            }
             if (extra) {
                 free(extra);
             }
@@ -1129,6 +1156,8 @@ PyImaging_JpegEncoderNew(PyObject *self, PyObject *args) {
     ((JPEGENCODERSTATE *)encoder->state.context)->streamtype = streamtype;
     ((JPEGENCODERSTATE *)encoder->state.context)->xdpi = xdpi;
     ((JPEGENCODERSTATE *)encoder->state.context)->ydpi = ydpi;
+    ((JPEGENCODERSTATE *)encoder->state.context)->comment = comment;
+    ((JPEGENCODERSTATE *)encoder->state.context)->comment_size = comment_size;
     ((JPEGENCODERSTATE *)encoder->state.context)->extra = extra;
     ((JPEGENCODERSTATE *)encoder->state.context)->extra_size = extra_size;
     ((JPEGENCODERSTATE *)encoder->state.context)->rawExif = rawExif;
@@ -1182,11 +1211,13 @@ PyImaging_Jpeg2KEncoderNew(PyObject *self, PyObject *args) {
     OPJ_PROG_ORDER prog_order;
     char *cinema_mode = "no";
     OPJ_CINEMA_MODE cine_mode;
+    char mct = 0;
+    int sgnd = 0;
     Py_ssize_t fd = -1;
 
     if (!PyArg_ParseTuple(
             args,
-            "ss|OOOsOnOOOssn",
+            "ss|OOOsOnOOOssbbn",
             &mode,
             &format,
             &offset,
@@ -1200,6 +1231,8 @@ PyImaging_Jpeg2KEncoderNew(PyObject *self, PyObject *args) {
             &irreversible,
             &progression,
             &cinema_mode,
+            &mct,
+            &sgnd,
             &fd)) {
         return NULL;
     }
@@ -1297,6 +1330,8 @@ PyImaging_Jpeg2KEncoderNew(PyObject *self, PyObject *args) {
     context->irreversible = PyObject_IsTrue(irreversible);
     context->progression = prog_order;
     context->cinema_mode = cine_mode;
+    context->mct = mct;
+    context->sgnd = sgnd;
 
     return (PyObject *)encoder;
 }

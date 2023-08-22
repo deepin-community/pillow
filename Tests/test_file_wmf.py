@@ -24,6 +24,12 @@ def test_load_raw():
             assert_image_similar_tofile(im, "Tests/images/drawing_wmf_ref.png", 2.0)
 
 
+def test_load():
+    with Image.open("Tests/images/drawing.emf") as im:
+        if hasattr(Image.core, "drawwmf"):
+            assert im.load()[0, 0] == (255, 255, 255)
+
+
 def test_register_handler(tmp_path):
     class TestHandler:
         methodCalled = False
@@ -60,10 +66,10 @@ def test_load_set_dpi():
             assert_image_similar_tofile(im, "Tests/images/drawing_wmf_ref_144.png", 2.1)
 
 
-def test_save(tmp_path):
+@pytest.mark.parametrize("ext", (".wmf", ".emf"))
+def test_save(ext, tmp_path):
     im = hopper()
 
-    for ext in [".wmf", ".emf"]:
-        tmpfile = str(tmp_path / ("temp" + ext))
-        with pytest.raises(OSError):
-            im.save(tmpfile)
+    tmpfile = str(tmp_path / ("temp" + ext))
+    with pytest.raises(OSError):
+        im.save(tmpfile)

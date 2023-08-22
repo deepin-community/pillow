@@ -1,0 +1,63 @@
+From 04cf5e2cfc5dc1676efd9f5c8d605ddfccb0f9ee Mon Sep 17 00:00:00 2001
+From: Bas Couwenberg <sebastic@xs4all.nl>
+Date: Sat, 14 Jan 2023 19:09:43 +0100
+Subject: Handle more than one directory returned by pkg-config.
+
+tiff (4.5.0-1) in Debian results in two include directories being returned:
+```
+-I/usr/include/x86_64-linux-gnu -I/usr/include
+```
+---
+ setup.py | 24 +++++++++++++++---------
+ 1 file changed, 15 insertions(+), 9 deletions(-)
+
+diff --git a/setup.py b/setup.py
+index 243365681..b4ebbb9c2 100755
+--- a/setup.py
++++ b/setup.py
+@@ -263,18 +263,20 @@ def _pkg_config(name):
+             if not DEBUG:
+                 command_libs.append("--silence-errors")
+                 command_cflags.append("--silence-errors")
+-            libs = (
++            libs = re.split(
++                r"\s*-L",
+                 subprocess.check_output(command_libs, stderr=stderr)
+                 .decode("utf8")
+-                .strip()
+-                .replace("-L", "")
++                .strip(),
+             )
+-            cflags = (
+-                subprocess.check_output(command_cflags)
++            libs.remove("")
++            cflags = re.split(
++                r"\s*-I",
++                subprocess.check_output(command_cflags, stderr=stderr)
+                 .decode("utf8")
+-                .strip()
+-                .replace("-I", "")
++                .strip(),
+             )
++            cflags.remove("")
+             return libs, cflags
+         except Exception:
+             pass
+@@ -473,8 +475,12 @@ class pil_build_ext(build_ext):
+             else:
+                 lib_root = include_root = root
+ 
+-            _add_directory(library_dirs, lib_root)
+-            _add_directory(include_dirs, include_root)
++            if lib_root is not None:
++                for lib_dir in lib_root:
++                    _add_directory(library_dirs, lib_dir)
++            if include_root is not None:
++                for include_dir in include_root:
++                    _add_directory(include_dirs, include_dir)
+ 
+         # respect CFLAGS/CPPFLAGS/LDFLAGS
+         for k in ("CFLAGS", "CPPFLAGS", "LDFLAGS"):
+-- 
+2.30.2
+

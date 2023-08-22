@@ -4,7 +4,7 @@
 #export DH_VERBOSE=1
 
 PY3VERS	:= $(shell py3versions -vr)
-PY3VER   := $(shell python3 -c 'import sys; print(sys.version[:3])')
+PY3VER	:= $(shell python3 -c 'import re, sys;print(re.match("^\d*\.\d*", sys.version).group())')
 
 include /usr/share/python3/python.mk
 
@@ -16,21 +16,19 @@ ifneq ($(DEB_BUILD_MULTIARCH),$(DEB_HOST_MULTIARCH))
   SET_CROSS_ENV += _PYTHON_HOST_PLATFORM=$(DEB_HOST_GNU_CPU)
 endif
 
-build-arch: BBB=bbb
-build-indep: III=iii
+build-arch:
+build-indep:
 build-arch: build
 build-indep: build build-doc-stamp
 build: build-stamp
 
 build-doc-stamp: build
-	echo XXXXXXXXXXXX BBB=$(BBB) / III=$(III)
-	-PYTHONPATH=$(CURDIR)/$(wildcard build/lib.*-$(PY3VER)) $(MAKE) -C docs html
+	-PYTHONPATH=$(CURDIR)/$(firstword $(wildcard build/lib.*)) $(MAKE) -C docs html
 	touch $@
 
 build-stamp: $(PY3VERS:%=build-stamp-python%) $(PY3VERS:%=check-stamp-python%)
 	touch $@
 build-stamp-python%:
-	echo XXXXXXXXXXXX BBB=$(BBB) / III=$(III)
 #	tar xvf debian/lcms-images.tar.gz
 	$(SET_CROSS_ENV) python$* setup.py build
 	touch $@
@@ -122,15 +120,14 @@ install3-python%:
 # Build architecture-independent files here.
 # Pass -i to all debhelper commands in this target to reduce clutter.
 binary-indep: build build-doc-stamp install
-	echo XXXXXXXXXXXX BBB=$(BBB) / III=$(III)
 	dh_testdir -i
 	dh_testroot -i
 	dh_installdocs -i
-	dh_installdocs -ppython-pil-doc #docs/_build/html
+	dh_installdocs -ppython-pil-doc docs/_build/html
 	dh_sphinxdoc -ppython-pil-doc
 	dh_installexamples -i
 	dh_installchangelogs -i CHANGES.rst
-	dh_python2 -i
+	dh_python3 -i
 	dh_link -i
 	dh_compress -i -X.py
 	dh_fixperms -i
@@ -141,7 +138,6 @@ binary-indep: build build-doc-stamp install
 
 # Build architecture-dependent files here.
 binary-arch: build install
-	echo XXXXXXXXXXXX BBB=$(BBB) / III=$(III)
 	dh_testdir -a
 	dh_testroot -a
 	dh_installdocs -a
@@ -159,4 +155,4 @@ binary-arch: build install
 	dh_builddeb -a
 
 binary: binary-indep binary-arch
-.PHONY: build clean binary-arch install
+.PHONY: build clean binary-indep binary-arch binary install

@@ -1,8 +1,69 @@
-pillow (8.3.2-1) UNRELEASED; urgency=medium
+pillow (9.4.0-1.1) unstable; urgency=medium
 
-  * update
+  * Non-maintainer upload.
+  * Handle more than one directory returned by pkg-config (Closes: #1028904).
 
- -- Matthias Klose <doko@debian.org>  Wed, 20 Jul 2022 10:39:13 +0800
+ -- Bastian Germann <bage@debian.org>  Mon, 16 Jan 2023 16:29:25 +0100
+
+pillow (9.4.0-1) unstable; urgency=medium
+
+  * New upstream version.
+
+ -- Matthias Klose <doko@debian.org>  Tue, 03 Jan 2023 10:06:46 +0100
+
+pillow (9.3.0-1) unstable; urgency=medium
+
+  * New upstream version.
+  * Bump standards version.
+
+ -- Matthias Klose <doko@debian.org>  Mon, 26 Dec 2022 12:37:12 +0100
+
+pillow (9.2.0-1.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Add patch to fix FTBFS (Closes: #1020043)
+
+ -- Nilesh Patra <nilesh@debian.org>  Fri, 21 Oct 2022 15:53:14 +0000
+
+pillow (9.2.0-1) unstable; urgency=medium
+
+  * New upstream version.
+
+ -- Matthias Klose <doko@debian.org>  Sun, 17 Jul 2022 13:57:17 +0200
+
+pillow (9.1.1-1) unstable; urgency=medium
+
+  * New upstream version.
+    - CVE-2022-30595: When reading past the end of a TGA scan line,
+      reduce bytes left.
+    - Do not open images with zero or negative height (#6269).
+
+ -- Matthias Klose <doko@debian.org>  Fri, 27 May 2022 11:56:13 +0200
+
+pillow (9.1.0-1) unstable; urgency=medium
+
+  * New upstream version.
+
+ -- Matthias Klose <doko@debian.org>  Mon, 04 Apr 2022 13:08:08 +0200
+
+pillow (9.0.1-1) unstable; urgency=medium
+
+  * New upstream version.
+  * Fix documentation build error with Python 3.10 (Heinrich Schuchardt).
+
+ -- Matthias Klose <doko@debian.org>  Fri, 18 Feb 2022 01:07:13 +0100
+
+pillow (9.0.0-1) unstable; urgency=medium
+
+  * New upstream version.
+
+ -- Matthias Klose <doko@debian.org>  Mon, 10 Jan 2022 10:52:08 +0100
+
+pillow (8.4.0-1) unstable; urgency=medium
+
+  * New upstream version.
+
+ -- Matthias Klose <doko@debian.org>  Thu, 25 Nov 2021 13:17:45 +0100
 
 pillow (8.3.2-1) unstable; urgency=medium
 

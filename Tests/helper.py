@@ -30,7 +30,6 @@ if os.environ.get("SHOW_ERRORS", None):
             a.show()
             b.show()
 
-
 elif "GITHUB_ACTIONS" in os.environ:
     HAS_UPLOADER = True
 
@@ -43,7 +42,6 @@ elif "GITHUB_ACTIONS" in os.environ:
             a.save(os.path.join(tmpdir, "a.png"))
             b.save(os.path.join(tmpdir, "b.png"))
             return tmpdir
-
 
 else:
     try:
@@ -210,12 +208,11 @@ class PillowLeakTestCase:
             #     ru_maxrss
             # This is the maximum resident set size utilized (in bytes).
             return mem / 1024  # Kb
-        else:
-            # linux
-            # man 2 getrusage
-            #        ru_maxrss (since Linux 2.6.32)
-            #  This is the maximum resident set size used (in kilobytes).
-            return mem  # Kb
+        # linux
+        # man 2 getrusage
+        #        ru_maxrss (since Linux 2.6.32)
+        #  This is the maximum resident set size used (in kilobytes).
+        return mem  # Kb
 
     def _test_leak(self, core):
         start_mem = self._get_mem_usage()
@@ -287,7 +284,7 @@ def magick_command():
 
     if imagemagick and shutil.which(imagemagick[0]):
         return imagemagick
-    elif graphicsmagick and shutil.which(graphicsmagick[0]):
+    if graphicsmagick and shutil.which(graphicsmagick[0]):
         return graphicsmagick
 
 
@@ -326,7 +323,7 @@ def is_mingw():
     return sysconfig.get_platform() == "mingw"
 
 
-class cached_property:
+class CachedProperty:
     def __init__(self, func):
         self.func = func
 

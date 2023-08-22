@@ -1,0 +1,22 @@
+--- a/docs/Makefile
++++ b/docs/Makefile
+@@ -45,7 +45,7 @@ clean:
+ 	-rm -rf $(BUILDDIR)/*
+ 
+ install-sphinx:
+-	$(PYTHON) -m pip install --quiet furo olefile sphinx sphinx-copybutton sphinx-inline-tabs sphinx-issues sphinx-removed-in sphinxext-opengraph
++	: $(PYTHON) -m pip install --quiet furo olefile sphinx sphinx-copybutton sphinx-inline-tabs sphinx-issues sphinx-removed-in sphinxext-opengraph
+ 
+ .PHONY: html
+ html:
+--- a/docs/conf.py
++++ b/docs/conf.py
+@@ -123,7 +123,7 @@ nitpicky = True
+ # The theme to use for HTML and HTML Help pages.  See the documentation for
+ # a list of builtin themes.
+ 
+-html_theme = "furo"
++html_theme = "classic"
+ 
+ # Theme options are theme-specific and customize the look and feel of a theme
+ # further.  For a list of options available for each theme, see the

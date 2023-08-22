@@ -182,7 +182,11 @@ j2ku_gray_i(
                 const UINT16 *data = (const UINT16 *)&tiledata[2 * y * w];
                 UINT16 *row = (UINT16 *)im->image[y0 + y] + x0;
                 for (x = 0; x < w; ++x) {
-                    *row++ = j2ku_shift(offset + *data++, shift);
+                    UINT16 pixel = j2ku_shift(offset + *data++, shift);
+                    #ifdef WORDS_BIGENDIAN
+                        pixel = (pixel >> 8) | (pixel << 8);
+                    #endif
+                    *row++ = pixel;
                 }
             }
             break;
