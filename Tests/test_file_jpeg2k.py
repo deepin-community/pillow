@@ -4,13 +4,12 @@ from io import BytesIO
 
 import pytest
 
-from PIL import Image, ImageFile, Jpeg2KImagePlugin, features
+from PIL import Image, ImageFile, Jpeg2KImagePlugin, UnidentifiedImageError, features
 
 from .helper import (
     assert_image_equal,
     assert_image_similar,
     assert_image_similar_tofile,
-    is_big_endian,
     skip_unless_feature,
 )
 
@@ -31,9 +30,9 @@ def roundtrip(im, **options):
     im.save(out, "JPEG2000", **options)
     test_bytes = out.tell()
     out.seek(0)
-    im = Image.open(out)
-    im.bytes = test_bytes  # for testing only
-    im.load()
+    with Image.open(out) as im:
+        im.bytes = test_bytes  # for testing only
+        im.load()
     return im
 
 
@@ -127,14 +126,14 @@ def test_prog_res_rt():
     assert_image_equal(im, test_card)
 
 
-def test_default_num_resolutions():
-    for num_resolutions in range(2, 6):
-        d = 1 << (num_resolutions - 1)
-        im = test_card.resize((d - 1, d - 1))
-        with pytest.raises(OSError):
-            roundtrip(im, num_resolutions=num_resolutions)
-        reloaded = roundtrip(im)
-        assert_image_equal(im, reloaded)
+@pytest.mark.parametrize("num_resolutions", range(2, 6))
+def test_default_num_resolutions(num_resolutions):
+    d = 1 << (num_resolutions - 1)
+    im = test_card.resize((d - 1, d - 1))
+    with pytest.raises(OSError):
+        roundtrip(im, num_resolutions=num_resolutions)
+    reloaded = roundtrip(im)
+    assert_image_equal(im, reloaded)
 
 
 def test_reduce():
@@ -149,6 +148,38 @@ def test_reduce():
 
         im.thumbnail((40, 40))
         assert im.size == (40, 30)
+
+
+def test_load_dpi():
+    with Image.open("Tests/images/test-card-lossless.jp2") as im:
+        assert im.info["dpi"] == (71.9836, 71.9836)
+
+    with Image.open("Tests/images/zero_dpi.jp2") as im:
+        assert "dpi" not in im.info
+
+
+def test_restricted_icc_profile():
+    ImageFile.LOAD_TRUNCATED_IMAGES = True
+    try:
+        # JPEG2000 image with a restricted ICC profile and a known colorspace
+        with Image.open("Tests/images/balloon_eciRGBv2_aware.jp2") as im:
+            assert im.mode == "RGB"
+    finally:
+        ImageFile.LOAD_TRUNCATED_IMAGES = False
+
+
+def test_header_errors():
+    for path in (
+        "Tests/images/invalid_header_length.jp2",
+        "Tests/images/not_enough_data.jp2",
+    ):
+        with pytest.raises(UnidentifiedImageError):
+            with Image.open(path):
+                pass
+
+    with pytest.raises(OSError):
+        with Image.open("Tests/images/expected_to_read.jp2"):
+            pass
 
 
 def test_layers_type(tmp_path):
@@ -178,6 +209,63 @@ def test_layers():
         assert_image_similar(im, test_card, 0.4)
 
 
+@pytest.mark.parametrize(
+    "name, args, offset, data",
+    (
+        ("foo.j2k", {}, 0, b"\xff\x4f"),
+        ("foo.jp2", {}, 4, b"jP"),
+        (None, {"no_jp2": True}, 0, b"\xff\x4f"),
+        ("foo.j2k", {"no_jp2": True}, 0, b"\xff\x4f"),
+        ("foo.jp2", {"no_jp2": True}, 0, b"\xff\x4f"),
+        ("foo.j2k", {"no_jp2": False}, 0, b"\xff\x4f"),
+        ("foo.jp2", {"no_jp2": False}, 4, b"jP"),
+        ("foo.jp2", {"no_jp2": False}, 4, b"jP"),
+    ),
+)
+def test_no_jp2(name, args, offset, data):
+    out = BytesIO()
+    if name:
+        out.name = name
+    test_card.save(out, "JPEG2000", **args)
+    out.seek(offset)
+    assert out.read(2) == data
+
+
+def test_mct():
+    # Three component
+    for val in (0, 1):
+        out = BytesIO()
+        test_card.save(out, "JPEG2000", mct=val, no_jp2=True)
+
+        assert out.getvalue()[59] == val
+        with Image.open(out) as im:
+            assert_image_similar(im, test_card, 1.0e-3)
+
+    # Single component should have MCT disabled
+    for val in (0, 1):
+        out = BytesIO()
+        with Image.open("Tests/images/16bit.cropped.jp2") as jp2:
+            jp2.save(out, "JPEG2000", mct=val, no_jp2=True)
+
+        assert out.getvalue()[53] == 0
+        with Image.open(out) as im:
+            assert_image_similar(im, jp2, 1.0e-3)
+
+
+def test_sgnd(tmp_path):
+    outfile = str(tmp_path / "temp.jp2")
+
+    im = Image.new("L", (1, 1))
+    im.save(outfile)
+    with Image.open(outfile) as reloaded:
+        assert reloaded.getpixel((0, 0)) == 0
+
+    im = Image.new("L", (1, 1))
+    im.save(outfile, signed=True)
+    with Image.open(outfile) as reloaded_signed:
+        assert reloaded_signed.getpixel((0, 0)) == 128
+
+
 def test_rgba():
     # Arrange
     with Image.open("Tests/images/rgb_trns_ycbc.j2k") as j2k:
@@ -192,23 +280,18 @@ def test_rgba():
             assert jp2.mode == "RGBA"
 
 
-def test_16bit_monochrome_has_correct_mode():
-    with Image.open("Tests/images/16bit.cropped.j2k") as j2k:
-        j2k.load()
-        assert j2k.mode == "I;16"
-
-    with Image.open("Tests/images/16bit.cropped.jp2") as jp2:
-        jp2.load()
-        assert jp2.mode == "I;16"
+@pytest.mark.parametrize("ext", (".j2k", ".jp2"))
+def test_16bit_monochrome_has_correct_mode(ext):
+    with Image.open("Tests/images/16bit.cropped" + ext) as im:
+        im.load()
+        assert im.mode == "I;16"
 
 
-@pytest.mark.xfail(is_big_endian(), reason="Fails on big-endian")
 def test_16bit_monochrome_jp2_like_tiff():
     with Image.open("Tests/images/16bit.cropped.tif") as tiff_16bit:
         assert_image_similar_tofile(tiff_16bit, "Tests/images/16bit.cropped.jp2", 1e-3)
 
 
-@pytest.mark.xfail(is_big_endian(), reason="Fails on big-endian")
 def test_16bit_monochrome_j2k_like_tiff():
     with Image.open("Tests/images/16bit.cropped.tif") as tiff_16bit:
         assert_image_similar_tofile(tiff_16bit, "Tests/images/16bit.cropped.j2k", 1e-3)
@@ -224,6 +307,11 @@ def test_16bit_jp2_roundtrips():
     with Image.open("Tests/images/16bit.cropped.jp2") as jp2:
         im = roundtrip(jp2)
         assert_image_equal(im, jp2)
+
+
+def test_issue_6194():
+    with Image.open("Tests/images/issue_6194.j2k") as im:
+        assert im.getpixel((5, 5)) == 31
 
 
 def test_unbound_local():
@@ -262,7 +350,7 @@ def test_subsampling_decode(name):
                 # RGB reference images are downscaled
                 epsilon = 3e-3
                 width, height = width * 2, height * 2
-            expected = im2.resize((width, height), Image.NEAREST)
+            expected = im2.resize((width, height), Image.Resampling.NEAREST)
         assert_image_similar(im, expected, epsilon)
 
 

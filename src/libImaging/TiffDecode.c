@@ -24,7 +24,7 @@
  *
  * This cast is safe, as the top 32-bits of HFILE are guaranteed to be zero,
  * see
- * https://docs.microsoft.com/en-us/windows/win32/winprog64/interprocess-communication
+ * https://learn.microsoft.com/en-us/windows/win32/winprog64/interprocess-communication
  */
 #ifndef USE_WIN32_FILEIO
 #define fd_to_tiff_fd(fd) (fd)
@@ -543,7 +543,7 @@ ImagingLibTiffDecode(
     Imaging im, ImagingCodecState state, UINT8 *buffer, Py_ssize_t bytes) {
     TIFFSTATE *clientstate = (TIFFSTATE *)state->context;
     char *filename = "tempfile.tif";
-    char *mode = "r";
+    char *mode = "rC";
     TIFF *tiff;
     uint16_t photometric = 0;  // init to not PHOTOMETRIC_YCBCR
     uint16_t compression;
@@ -551,7 +551,7 @@ ImagingLibTiffDecode(
     uint16_t planarconfig = 0;
     int planes = 1;
     ImagingShuffler unpackers[4];
-    UINT32 img_width, img_height;
+    INT32 img_width, img_height;
 
     memset(unpackers, 0, sizeof(ImagingShuffler) * 4);
 
@@ -771,11 +771,11 @@ ImagingLibTiffEncodeInit(ImagingCodecState state, char *filename, int fp) {
         TRACE(("Opening using fd: %d for writing \n", clientstate->fp));
         clientstate->tiff = TIFFFdOpen(fd_to_tiff_fd(clientstate->fp), filename, mode);
     } else {
-        // malloc a buffer to write the tif, we're going to need to realloc or something
+        // calloc a buffer to write the tif, we're going to need to realloc or something
         // if we need bigger.
         TRACE(("Opening a buffer for writing \n"));
-        /* malloc check ok, small constant allocation */
-        clientstate->data = malloc(bufsize);
+        /* calloc check ok, small constant allocation */
+        clientstate->data = calloc(bufsize, 1);
         clientstate->size = bufsize;
         clientstate->flrealloc = 1;
 
@@ -815,11 +815,11 @@ ImagingLibTiffMergeFieldInfo(
 
     // custom fields added with ImagingLibTiffMergeFieldInfo are only used for
     // decoding, ignore readcount;
-    int readcount = 1;
+    int readcount = is_var_length ? TIFF_VARIABLE : 1;
     // we support writing a single value, or a variable number of values
-    int writecount = 1;
+    int writecount = is_var_length ? TIFF_VARIABLE : 1;
     // whether the first value should encode the number of values.
-    int passcount = 0;
+    int passcount = (is_var_length && field_type != TIFF_ASCII) ? 1 : 0;
 
     TIFFFieldInfo info[] = {
         {key,
@@ -830,14 +830,6 @@ ImagingLibTiffMergeFieldInfo(
          1,
          passcount,
          "CustomField"}};
-
-    if (is_var_length) {
-        info[0].field_writecount = -1;
-    }
-
-    if (is_var_length && field_type != TIFF_ASCII) {
-        info[0].field_passcount = 1;
-    }
 
     n = sizeof(info) / sizeof(info[0]);
 
@@ -924,7 +916,7 @@ ImagingLibTiffEncode(Imaging im, ImagingCodecState state, UINT8 *buffer, int byt
     dump_state(clientstate);
 
     if (state->state == 0) {
-        TRACE(("Encoding line bt line"));
+        TRACE(("Encoding line by line"));
         while (state->y < state->ysize) {
             state->shuffle(
                 state->buffer,

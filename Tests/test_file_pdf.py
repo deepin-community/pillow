@@ -6,7 +6,7 @@ import time
 
 import pytest
 
-from PIL import Image, PdfParser
+from PIL import Image, PdfParser, features
 
 from .helper import hopper, mark_if_feature_version
 
@@ -37,45 +37,18 @@ def helper_save_as_pdf(tmp_path, mode, **kwargs):
     return outfile
 
 
+@pytest.mark.parametrize("mode", ("L", "P", "RGB", "CMYK"))
+def test_save(tmp_path, mode):
+    helper_save_as_pdf(tmp_path, mode)
+
+
 def test_monochrome(tmp_path):
     # Arrange
     mode = "1"
 
     # Act / Assert
     outfile = helper_save_as_pdf(tmp_path, mode)
-    assert os.path.getsize(outfile) < 15000
-
-
-def test_greyscale(tmp_path):
-    # Arrange
-    mode = "L"
-
-    # Act / Assert
-    helper_save_as_pdf(tmp_path, mode)
-
-
-def test_rgb(tmp_path):
-    # Arrange
-    mode = "RGB"
-
-    # Act / Assert
-    helper_save_as_pdf(tmp_path, mode)
-
-
-def test_p_mode(tmp_path):
-    # Arrange
-    mode = "P"
-
-    # Act / Assert
-    helper_save_as_pdf(tmp_path, mode)
-
-
-def test_cmyk_mode(tmp_path):
-    # Arrange
-    mode = "CMYK"
-
-    # Act / Assert
-    helper_save_as_pdf(tmp_path, mode)
+    assert os.path.getsize(outfile) < (5000 if features.check("libtiff") else 15000)
 
 
 def test_unsupported_mode(tmp_path):
@@ -131,10 +104,10 @@ def test_save_all(tmp_path):
         assert os.path.getsize(outfile) > 0
 
         # Test appending using a generator
-        def imGenerator(ims):
+        def im_generator(ims):
             yield from ims
 
-        im.save(outfile, save_all=True, append_images=imGenerator(ims))
+        im.save(outfile, save_all=True, append_images=im_generator(ims))
 
     assert os.path.isfile(outfile)
     assert os.path.getsize(outfile) > 0
@@ -253,9 +226,9 @@ def test_pdf_append(tmp_path):
         check_pdf_pages_consistency(pdf)
 
     # append two images
-    mode_CMYK = hopper("CMYK")
-    mode_P = hopper("P")
-    mode_CMYK.save(pdf_filename, append=True, save_all=True, append_images=[mode_P])
+    mode_cmyk = hopper("CMYK")
+    mode_p = hopper("P")
+    mode_cmyk.save(pdf_filename, append=True, save_all=True, append_images=[mode_p])
 
     # open the PDF again, check pages and info again
     with PdfParser.PdfParser(pdf_filename) as pdf:
@@ -313,8 +286,10 @@ def test_pdf_append_to_bytesio():
 
 
 @pytest.mark.timeout(1)
-def test_redos():
-    malicious = b" trailer<<>>" + b"\n" * 3456
+@pytest.mark.skipif("PILLOW_VALGRIND_TEST" in os.environ, reason="Valgrind is slower")
+@pytest.mark.parametrize("newline", (b"\r", b"\n"))
+def test_redos(newline):
+    malicious = b" trailer<<>>" + newline * 3456
 
     # This particular exception isn't relevant here.
     # The important thing is it doesn't timeout, cause a ReDoS (CVE-2021-25292).

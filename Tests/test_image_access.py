@@ -1,15 +1,13 @@
-import ctypes
 import os
 import subprocess
 import sys
 import sysconfig
 
 import pytest
-from setuptools.command.build_ext import new_compiler
 
 from PIL import Image
 
-from .helper import assert_image_equal, hopper, is_win32, on_ci
+from .helper import assert_image_equal, hopper, is_win32
 
 # CFFI imports pycparser which doesn't support PYTHONOPTIMIZE=2
 # https://github.com/eliben/pycparser/pull/198#issuecomment-317001670
@@ -132,8 +130,7 @@ class TestImageGetPixel(AccessTest):
         bands = Image.getmodebands(mode)
         if bands == 1:
             return 1
-        else:
-            return tuple(range(1, bands + 1))
+        return tuple(range(1, bands + 1))
 
     def check(self, mode, c=None):
         if not c:
@@ -154,14 +151,17 @@ class TestImageGetPixel(AccessTest):
 
         # Check 0
         im = Image.new(mode, (0, 0), None)
-        with pytest.raises(IndexError):
+        assert im.load() is not None
+
+        error = ValueError if self._need_cffi_access else IndexError
+        with pytest.raises(error):
             im.putpixel((0, 0), c)
-        with pytest.raises(IndexError):
+        with pytest.raises(error):
             im.getpixel((0, 0))
         # Check 0 negative index
-        with pytest.raises(IndexError):
+        with pytest.raises(error):
             im.putpixel((-1, -1), c)
-        with pytest.raises(IndexError):
+        with pytest.raises(error):
             im.getpixel((-1, -1))
 
         # check initial color
@@ -176,14 +176,15 @@ class TestImageGetPixel(AccessTest):
 
         # Check 0
         im = Image.new(mode, (0, 0), c)
-        with pytest.raises(IndexError):
+        with pytest.raises(error):
             im.getpixel((0, 0))
         # Check 0 negative index
-        with pytest.raises(IndexError):
+        with pytest.raises(error):
             im.getpixel((-1, -1))
 
-    def test_basic(self):
-        for mode in (
+    @pytest.mark.parametrize(
+        "mode",
+        (
             "1",
             "L",
             "LA",
@@ -198,23 +199,28 @@ class TestImageGetPixel(AccessTest):
             "RGBX",
             "CMYK",
             "YCbCr",
-        ):
-            self.check(mode)
+        ),
+    )
+    def test_basic(self, mode):
+        self.check(mode)
 
-    def test_signedness(self):
+    @pytest.mark.parametrize("mode", ("I;16", "I;16B"))
+    def test_signedness(self, mode):
         # see https://github.com/python-pillow/Pillow/issues/452
         # pixelaccess is using signed int* instead of uint*
-        for mode in ("I;16", "I;16B"):
-            self.check(mode, 2 ** 15 - 1)
-            self.check(mode, 2 ** 15)
-            self.check(mode, 2 ** 15 + 1)
-            self.check(mode, 2 ** 16 - 1)
+        self.check(mode, 2**15 - 1)
+        self.check(mode, 2**15)
+        self.check(mode, 2**15 + 1)
+        self.check(mode, 2**16 - 1)
 
-    def test_p_putpixel_rgb_rgba(self):
-        for color in [(255, 0, 0), (255, 0, 0, 255)]:
-            im = Image.new("P", (1, 1), 0)
-            im.putpixel((0, 0), color)
-            assert im.convert("RGB").getpixel((0, 0)) == (255, 0, 0)
+    @pytest.mark.parametrize("mode", ("P", "PA"))
+    @pytest.mark.parametrize("color", ((255, 0, 0), (255, 0, 0, 255)))
+    def test_p_putpixel_rgb_rgba(self, mode, color):
+        im = Image.new(mode, (1, 1))
+        im.putpixel((0, 0), color)
+
+        alpha = color[3] if len(color) == 4 and mode == "PA" else 255
+        assert im.convert("RGBA").getpixel((0, 0)) == (255, 0, 0, alpha)
 
 
 @pytest.mark.skipif(cffi is None, reason="No CFFI")
@@ -335,12 +341,16 @@ class TestCffi(AccessTest):
                 # pixels can contain garbage if image is released
                 assert px[i, 0] == 0
 
-    def test_p_putpixel_rgb_rgba(self):
-        for color in [(255, 0, 0), (255, 0, 0, 255)]:
-            im = Image.new("P", (1, 1), 0)
+    @pytest.mark.parametrize("mode", ("P", "PA"))
+    def test_p_putpixel_rgb_rgba(self, mode):
+        for color in ((255, 0, 0), (255, 0, 0, 127 if mode == "PA" else 255)):
+            im = Image.new(mode, (1, 1))
             access = PyAccess.new(im, False)
             access.putpixel((0, 0), color)
-            assert im.convert("RGB").getpixel((0, 0)) == (255, 0, 0)
+
+            if len(color) == 3:
+                color += (255,)
+            assert im.convert("RGBA").getpixel((0, 0)) == color
 
 
 class TestImagePutPixelError(AccessTest):
@@ -386,7 +396,7 @@ class TestImagePutPixelError(AccessTest):
     def test_putpixel_overflow_error(self, mode):
         im = hopper(mode)
         with pytest.raises(OverflowError):
-            im.putpixel((0, 0), 2 ** 80)
+            im.putpixel((0, 0), 2**80)
 
     def test_putpixel_unrecognized_mode(self):
         im = hopper("BGR;15")
@@ -395,13 +405,14 @@ class TestImagePutPixelError(AccessTest):
 
 
 class TestEmbeddable:
-    @pytest.mark.skipif(
-        not is_win32() or on_ci(),
-        reason="Failing on AppVeyor / GitHub Actions when run from subprocess, "
-        "not from shell",
-    )
+    @pytest.mark.xfail(reason="failing test")
+    @pytest.mark.skipif(not is_win32(), reason="requires Windows")
     def test_embeddable(self):
-        with open("embed_pil.c", "w") as fh:
+        import ctypes
+
+        from setuptools.command.build_ext import new_compiler
+
+        with open("embed_pil.c", "w", encoding="utf-8") as fh:
             fh.write(
                 """
 #include "Python.h"

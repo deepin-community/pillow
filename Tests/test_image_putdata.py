@@ -1,6 +1,8 @@
 import sys
 from array import array
 
+import pytest
+
 from PIL import Image
 
 from .helper import assert_image_equal, hopper
@@ -36,7 +38,7 @@ def test_long_integers():
     assert put(0xFFFFFFFF) == (255, 255, 255, 255)
     assert put(-1) == (255, 255, 255, 255)
     assert put(-1) == (255, 255, 255, 255)
-    if sys.maxsize > 2 ** 32:
+    if sys.maxsize > 2**32:
         assert put(sys.maxsize) == (255, 255, 255, 255)
     else:
         assert put(sys.maxsize) == (255, 255, 255, 127)
@@ -47,10 +49,17 @@ def test_pypy_performance():
     im.putdata(list(range(256)) * 256)
 
 
-def test_mode_i():
+def test_mode_with_L_with_float():
+    im = Image.new("L", (1, 1), 0)
+    im.putdata([2.0])
+    assert im.getpixel((0, 0)) == 2
+
+
+@pytest.mark.parametrize("mode", ("I", "I;16", "I;16L", "I;16B"))
+def test_mode_i(mode):
     src = hopper("L")
     data = list(src.getdata())
-    im = Image.new("I", src.size, 0)
+    im = Image.new(mode, src.size, 0)
     im.putdata(data, 2, 256)
 
     target = [2 * elt + 256 for elt in data]
@@ -87,3 +96,18 @@ def test_array_F():
     im.putdata(arr)
 
     assert len(im.getdata()) == len(arr)
+
+
+def test_not_flattened():
+    im = Image.new("L", (1, 1))
+    with pytest.raises(TypeError):
+        im.putdata([[0]])
+    with pytest.raises(TypeError):
+        im.putdata([[0]], 2)
+
+    with pytest.raises(TypeError):
+        im = Image.new("I", (1, 1))
+        im.putdata([[0]])
+    with pytest.raises(TypeError):
+        im = Image.new("F", (1, 1))
+        im.putdata([[0]])

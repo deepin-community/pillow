@@ -82,6 +82,12 @@ typedef struct {
     /* Compression style */
     int irreversible;
 
+    /* Set multiple component transformation */
+    char mct;
+
+    /* Signed */
+    int sgnd;
+
     /* Progression order (LRCP/RLCP/RPCL/PCRL/CPRL) */
     OPJ_PROG_ORDER progression;
 

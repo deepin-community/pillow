@@ -12,62 +12,12 @@ Deprecated features
 Below are features which are considered deprecated. Where appropriate,
 a ``DeprecationWarning`` is issued.
 
-FreeType 2.7
-~~~~~~~~~~~~
-
-.. deprecated:: 8.1.0
-
-Support for FreeType 2.7 is deprecated and will be removed in Pillow 9.0.0 (2022-01-02),
-when FreeType 2.8 will be the minimum supported.
-
-We recommend upgrading to at least FreeType `2.10.4`_, which fixed a severe
-vulnerability introduced in FreeType 2.6 (:cve:`CVE-2020-15999`).
-
-.. _2.10.4: https://sourceforge.net/projects/freetype/files/freetype2/2.10.4/
-
-Image.show command parameter
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. deprecated:: 7.2.0
-
-The ``command`` parameter will be removed in Pillow 9.0.0 (2022-01-02).
-Use a subclass of :py:class:`.ImageShow.Viewer` instead.
-
-Image._showxv
-~~~~~~~~~~~~~
-
-.. deprecated:: 7.2.0
-
-``Image._showxv`` will be removed in Pillow 9.0.0 (2022-01-02).
-Use :py:meth:`.Image.Image.show` instead. If custom behaviour is required, use
-:py:func:`.ImageShow.register` to add a custom :py:class:`.ImageShow.Viewer` class.
-
-ImageFile.raise_ioerror
-~~~~~~~~~~~~~~~~~~~~~~~
-
-.. deprecated:: 7.2.0
-
-``IOError`` was merged into ``OSError`` in Python 3.3.
-So, ``ImageFile.raise_ioerror`` will be removed in Pillow 9.0.0 (2022-01-02).
-Use ``ImageFile.raise_oserror`` instead.
-
-PILLOW_VERSION constant
-~~~~~~~~~~~~~~~~~~~~~~~
-
-.. deprecated:: 5.2.0
-
-``PILLOW_VERSION`` will be removed in Pillow 9.0.0 (2022-01-02).
-Use ``__version__`` instead.
-
-It was initially removed in Pillow 7.0.0, but brought back in 7.1.0 to give projects
-more time to upgrade.
-
 Tk/Tcl 8.4
 ~~~~~~~~~~
 
 .. deprecated:: 8.2.0
 
-Support for Tk/Tcl 8.4 is deprecated and will be removed in Pillow 10.0.0 (2023-01-02),
+Support for Tk/Tcl 8.4 is deprecated and will be removed in Pillow 10.0.0 (2023-07-01),
 when Tk/Tcl 8.5 will be the minimum supported.
 
 Categories
@@ -75,7 +25,7 @@ Categories
 
 .. deprecated:: 8.2.0
 
-``im.category`` is deprecated and will be removed in Pillow 10.0.0 (2023-01-02),
+``im.category`` is deprecated and will be removed in Pillow 10.0.0 (2023-07-01),
 along with the related ``Image.NORMAL``, ``Image.SEQUENCE`` and
 ``Image.CONTAINER`` attributes.
 
@@ -90,13 +40,234 @@ JpegImagePlugin.convert_dict_qtables
 JPEG ``quantization`` is now automatically converted, but still returned as a
 dictionary. The :py:attr:`~PIL.JpegImagePlugin.convert_dict_qtables` method no longer
 performs any operations on the data given to it, has been deprecated and will be
-removed in Pillow 10.0.0 (2023-01-02).
+removed in Pillow 10.0.0 (2023-07-01).
+
+ImagePalette size parameter
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. deprecated:: 8.4.0
+
+The ``size`` parameter will be removed in Pillow 10.0.0 (2023-07-01).
+
+Before Pillow 8.3.0, ``ImagePalette`` required palette data of particular lengths by
+default, and the size parameter could be used to override that. Pillow 8.3.0 removed
+the default required length, also removing the need for the size parameter.
+
+ImageShow.Viewer.show_file file argument
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. deprecated:: 9.1.0
+
+The ``file`` argument in :py:meth:`~PIL.ImageShow.Viewer.show_file()` has been
+deprecated and will be removed in Pillow 10.0.0 (2023-07-01). It has been replaced by
+``path``.
+
+In effect, ``viewer.show_file("test.jpg")`` will continue to work unchanged.
+``viewer.show_file(file="test.jpg")`` will raise a deprecation warning, and suggest
+``viewer.show_file(path="test.jpg")`` instead.
+
+Constants
+~~~~~~~~~
+
+.. deprecated:: 9.1.0
+
+A number of constants have been deprecated and will be removed in Pillow 10.0.0
+(2023-07-01). Instead, ``enum.IntEnum`` classes have been added.
+
+.. note::
+
+    Additional ``Image`` constants were deprecated in Pillow 9.1.0, but that
+    was reversed in Pillow 9.4.0 and those constants will now remain available.
+    See :ref:`restored-image-constants`
+
+=====================================================  ============================================================
+Deprecated                                             Use instead
+=====================================================  ============================================================
+``Image.LINEAR``                                       ``Image.BILINEAR`` or ``Image.Resampling.BILINEAR``
+``Image.CUBIC``                                        ``Image.BICUBIC`` or ``Image.Resampling.BICUBIC``
+``Image.ANTIALIAS``                                    ``Image.LANCZOS`` or ``Image.Resampling.LANCZOS``
+``ImageCms.INTENT_PERCEPTUAL``                         ``ImageCms.Intent.PERCEPTUAL``
+``ImageCms.INTENT_RELATIVE_COLORMETRIC``               ``ImageCms.Intent.RELATIVE_COLORMETRIC``
+``ImageCms.INTENT_SATURATION``                         ``ImageCms.Intent.SATURATION``
+``ImageCms.INTENT_ABSOLUTE_COLORIMETRIC``              ``ImageCms.Intent.ABSOLUTE_COLORIMETRIC``
+``ImageCms.DIRECTION_INPUT``                           ``ImageCms.Direction.INPUT``
+``ImageCms.DIRECTION_OUTPUT``                          ``ImageCms.Direction.OUTPUT``
+``ImageCms.DIRECTION_PROOF``                           ``ImageCms.Direction.PROOF``
+``ImageFont.LAYOUT_BASIC``                             ``ImageFont.Layout.BASIC``
+``ImageFont.LAYOUT_RAQM``                              ``ImageFont.Layout.RAQM``
+``BlpImagePlugin.BLP_FORMAT_JPEG``                     ``BlpImagePlugin.Format.JPEG``
+``BlpImagePlugin.BLP_ENCODING_UNCOMPRESSED``           ``BlpImagePlugin.Encoding.UNCOMPRESSED``
+``BlpImagePlugin.BLP_ENCODING_DXT``                    ``BlpImagePlugin.Encoding.DXT``
+``BlpImagePlugin.BLP_ENCODING_UNCOMPRESSED_RAW_RGBA``  ``BlpImagePlugin.Encoding.UNCOMPRESSED_RAW_RGBA``
+``BlpImagePlugin.BLP_ALPHA_ENCODING_DXT1``             ``BlpImagePlugin.AlphaEncoding.DXT1``
+``BlpImagePlugin.BLP_ALPHA_ENCODING_DXT3``             ``BlpImagePlugin.AlphaEncoding.DXT3``
+``BlpImagePlugin.BLP_ALPHA_ENCODING_DXT5``             ``BlpImagePlugin.AlphaEncoding.DXT5``
+``FtexImagePlugin.FORMAT_DXT1``                        ``FtexImagePlugin.Format.DXT1``
+``FtexImagePlugin.FORMAT_UNCOMPRESSED``                ``FtexImagePlugin.Format.UNCOMPRESSED``
+``PngImagePlugin.APNG_DISPOSE_OP_NONE``                ``PngImagePlugin.Disposal.OP_NONE``
+``PngImagePlugin.APNG_DISPOSE_OP_BACKGROUND``          ``PngImagePlugin.Disposal.OP_BACKGROUND``
+``PngImagePlugin.APNG_DISPOSE_OP_PREVIOUS``            ``PngImagePlugin.Disposal.OP_PREVIOUS``
+``PngImagePlugin.APNG_BLEND_OP_SOURCE``                ``PngImagePlugin.Blend.OP_SOURCE``
+``PngImagePlugin.APNG_BLEND_OP_OVER``                  ``PngImagePlugin.Blend.OP_OVER``
+=====================================================  ============================================================
+
+FitsStubImagePlugin
+~~~~~~~~~~~~~~~~~~~
+
+.. deprecated:: 9.1.0
+
+The stub image plugin ``FitsStubImagePlugin`` has been deprecated and will be removed in
+Pillow 10.0.0 (2023-07-01). FITS images can be read without a handler through
+:mod:`~PIL.FitsImagePlugin` instead.
+
+FreeTypeFont.getmask2 fill parameter
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. deprecated:: 9.2.0
+
+The undocumented ``fill`` parameter of :py:meth:`.FreeTypeFont.getmask2` has been
+deprecated and will be removed in Pillow 10 (2023-07-01).
+
+PhotoImage.paste box parameter
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. deprecated:: 9.2.0
+
+The ``box`` parameter is unused. It will be removed in Pillow 10.0.0 (2023-07-01).
+
+PyQt5 and PySide2
+~~~~~~~~~~~~~~~~~
+
+.. deprecated:: 9.2.0
+
+`Qt 5 reached end-of-life <https://www.qt.io/blog/qt-5.15-released>`_ on 2020-12-08 for
+open-source users (and will reach EOL on 2023-12-08 for commercial licence holders).
+
+Support for PyQt5 and PySide2 has been deprecated from ``ImageQt`` and will be removed
+in Pillow 10 (2023-07-01). Upgrade to
+`PyQt6 <https://www.riverbankcomputing.com/static/Docs/PyQt6/>`_ or
+`PySide6 <https://doc.qt.io/qtforpython/>`_ instead.
+
+Image.coerce_e
+~~~~~~~~~~~~~~
+
+.. deprecated:: 9.2.0
+
+This undocumented method has been deprecated and will be removed in Pillow 10
+(2023-07-01).
+
+.. _Font size and offset methods:
+
+Font size and offset methods
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. deprecated:: 9.2.0
+
+Several functions for computing the size and offset of rendered text
+have been deprecated and will be removed in Pillow 10 (2023-07-01):
+
+=========================================================================== =============================================================================================================
+Deprecated                                                                  Use instead
+=========================================================================== =============================================================================================================
+:py:meth:`.FreeTypeFont.getsize` and :py:meth:`.FreeTypeFont.getoffset`     :py:meth:`.FreeTypeFont.getbbox` and :py:meth:`.FreeTypeFont.getlength`
+:py:meth:`.FreeTypeFont.getsize_multiline`                                  :py:meth:`.ImageDraw.multiline_textbbox`
+:py:meth:`.ImageFont.getsize`                                               :py:meth:`.ImageFont.getbbox` and :py:meth:`.ImageFont.getlength`
+:py:meth:`.TransposedFont.getsize`                                          :py:meth:`.TransposedFont.getbbox` and :py:meth:`.TransposedFont.getlength`
+:py:meth:`.ImageDraw.textsize` and :py:meth:`.ImageDraw.multiline_textsize` :py:meth:`.ImageDraw.textbbox`, :py:meth:`.ImageDraw.textlength` and :py:meth:`.ImageDraw.multiline_textbbox`
+:py:meth:`.ImageDraw2.Draw.textsize`                                        :py:meth:`.ImageDraw2.Draw.textbbox` and :py:meth:`.ImageDraw2.Draw.textlength`
+=========================================================================== =============================================================================================================
+
+Previous code:
+
+.. code-block:: python
+
+    from PIL import Image, ImageDraw, ImageFont
+
+    font = ImageFont.truetype("Tests/fonts/FreeMono.ttf")
+    width, height = font.getsize("Hello world")
+    left, top = font.getoffset("Hello world")
+
+    im = Image.new("RGB", (100, 100))
+    draw = ImageDraw.Draw(im)
+    width, height = draw.textsize("Hello world")
+
+    width, height = font.getsize_multiline("Hello\nworld")
+    width, height = draw.multiline_textsize("Hello\nworld")
+
+Use instead:
+
+.. code-block:: python
+
+    from PIL import Image, ImageDraw, ImageFont
+
+    font = ImageFont.truetype("Tests/fonts/FreeMono.ttf")
+    left, top, right, bottom = font.getbbox("Hello world")
+    width, height = right - left, bottom - top
+
+    im = Image.new("RGB", (100, 100))
+    draw = ImageDraw.Draw(im)
+    width = draw.textlength("Hello world")
+
+    left, top, right, bottom = draw.multiline_textbbox((0, 0), "Hello\nworld")
+    width, height = right - left, bottom - top
 
 Removed features
 ----------------
 
 Deprecated features are only removed in major releases after an appropriate
 period of deprecation has passed.
+
+PILLOW_VERSION constant
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. deprecated:: 5.2.0
+.. versionremoved:: 9.0.0
+
+Use ``__version__`` instead.
+
+It was initially removed in Pillow 7.0.0, but temporarily brought back in 7.1.0
+to give projects more time to upgrade.
+
+Image.show command parameter
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. deprecated:: 7.2.0
+.. versionremoved:: 9.0.0
+
+The ``command`` parameter has been removed. Use a subclass of
+:py:class:`.ImageShow.Viewer` instead.
+
+Image._showxv
+~~~~~~~~~~~~~
+
+.. deprecated:: 7.2.0
+.. versionremoved:: 9.0.0
+
+Use :py:meth:`.Image.Image.show` instead. If custom behaviour is required, use
+:py:func:`.ImageShow.register` to add a custom :py:class:`.ImageShow.Viewer` class.
+
+ImageFile.raise_ioerror
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. deprecated:: 7.2.0
+.. versionremoved:: 9.0.0
+
+``IOError`` was merged into ``OSError`` in Python 3.3.
+So, ``ImageFile.raise_ioerror`` has been removed.
+Use ``ImageFile.raise_oserror`` instead.
+
+FreeType 2.7
+~~~~~~~~~~~~
+
+.. deprecated:: 8.1.0
+.. versionremoved:: 9.0.0
+
+Support for FreeType 2.7 has been removed.
+
+We recommend upgrading to at least `FreeType`_ 2.10.4, which fixed a severe
+vulnerability introduced in FreeType 2.6 (:cve:`CVE-2020-15999`).
+
+.. _FreeType: https://freetype.org/
 
 im.offset
 ~~~~~~~~~

@@ -1519,7 +1519,7 @@ error_0:
 
 typedef struct {
     Pixel new;
-    Pixel furthest;
+    uint32_t furthestV;
     uint32_t furthestDistance;
     int secondPixel;
 } DistanceData;
@@ -1536,7 +1536,7 @@ compute_distances(const HashTable *h, const Pixel pixel, uint32_t *dist, void *u
     }
     if (oldDist > data->furthestDistance) {
         data->furthestDistance = oldDist;
-        data->furthest.v = pixel.v;
+        data->furthestV = pixel.v;
     }
 }
 
@@ -1577,10 +1577,11 @@ quantize2(
     data.new.c.b = (int)(.5 + (double)mean[2] / (double)nPixels);
     for (i = 0; i < nQuantPixels; i++) {
         data.furthestDistance = 0;
+        data.furthestV = pixelData[0].v;
         data.secondPixel = (i == 1) ? 1 : 0;
         hashtable_foreach_update(h, compute_distances, &data);
-        p[i].v = data.furthest.v;
-        data.new.v = data.furthest.v;
+        p[i].v = data.furthestV;
+        data.new.v = data.furthestV;
     }
     hashtable_free(h);
 
@@ -1716,7 +1717,7 @@ ImagingQuantize(Imaging im, int colors, int mode, int kmeans) {
 
         withAlpha = !strcmp(im->mode, "RGBA");
         int transparency = 0;
-        unsigned char r, g, b;
+        unsigned char r = 0, g = 0, b = 0;
         for (i = y = 0; y < im->ysize; y++) {
             for (x = 0; x < im->xsize; x++, i++) {
                 p[i].v = im->image32[y][x];

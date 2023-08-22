@@ -63,6 +63,7 @@ def test_sanity():
     ImageOps.grayscale(hopper("L"))
     ImageOps.grayscale(hopper("RGB"))
 
+    ImageOps.invert(hopper("1"))
     ImageOps.invert(hopper("L"))
     ImageOps.invert(hopper("RGB"))
 
@@ -109,6 +110,16 @@ def test_contain(new_size):
     assert new_im.size == (256, 256)
 
 
+def test_contain_round():
+    im = Image.new("1", (43, 63), 1)
+    new_im = ImageOps.contain(im, (5, 7))
+    assert new_im.width == 5
+
+    im = Image.new("1", (63, 43), 1)
+    new_im = ImageOps.contain(im, (7, 5))
+    assert new_im.height == 5
+
+
 def test_pad():
     # Same ratio
     im = hopper()
@@ -127,6 +138,30 @@ def test_pad():
             assert_image_similar_tofile(
                 new_im, "Tests/images/imageops_pad_" + label + "_" + str(i) + ".jpg", 6
             )
+
+
+def test_pad_round():
+    im = Image.new("1", (1, 1), 1)
+    new_im = ImageOps.pad(im, (4, 1))
+    assert new_im.load()[2, 0] == 1
+
+    new_im = ImageOps.pad(im, (1, 4))
+    assert new_im.load()[0, 2] == 1
+
+
+@pytest.mark.parametrize("mode", ("P", "PA"))
+def test_palette(mode):
+    im = hopper(mode)
+
+    # Expand
+    expanded_im = ImageOps.expand(im)
+    assert_image_equal(im.convert("RGB"), expanded_im.convert("RGB"))
+
+    # Pad
+    padded_im = ImageOps.pad(im, (256, 128), centering=(0, 0))
+    assert_image_equal(
+        im.convert("RGB"), padded_im.convert("RGB").crop((0, 0, 128, 128))
+    )
 
 
 def test_pil163():
@@ -156,23 +191,31 @@ def test_scale():
     assert newimg.size == (25, 25)
 
 
-def test_expand_palette():
-    im = Image.open("Tests/images/p_16.tga")
-    im_expanded = ImageOps.expand(im, 10, (255, 0, 0))
+@pytest.mark.parametrize("border", (10, (1, 2, 3, 4)))
+def test_expand_palette(border):
+    with Image.open("Tests/images/p_16.tga") as im:
+        im_expanded = ImageOps.expand(im, border, (255, 0, 0))
 
-    px = im_expanded.convert("RGB").load()
-    for b in range(10):
+        if isinstance(border, int):
+            left = top = right = bottom = border
+        else:
+            left, top, right, bottom = border
+        px = im_expanded.convert("RGB").load()
         for x in range(im_expanded.width):
-            assert px[x, b] == (255, 0, 0)
-            assert px[x, im_expanded.height - 1 - b] == (255, 0, 0)
+            for b in range(top):
+                assert px[x, b] == (255, 0, 0)
+            for b in range(bottom):
+                assert px[x, im_expanded.height - 1 - b] == (255, 0, 0)
         for y in range(im_expanded.height):
-            assert px[b, x] == (255, 0, 0)
-            assert px[b, im_expanded.width - 1 - b] == (255, 0, 0)
+            for b in range(left):
+                assert px[b, y] == (255, 0, 0)
+            for b in range(right):
+                assert px[im_expanded.width - 1 - b, y] == (255, 0, 0)
 
-    im_cropped = im_expanded.crop(
-        (10, 10, im_expanded.width - 10, im_expanded.height - 10)
-    )
-    assert_image_equal(im_cropped, im)
+        im_cropped = im_expanded.crop(
+            (left, top, im_expanded.width - right, im_expanded.height - bottom)
+        )
+        assert_image_equal(im_cropped, im)
 
 
 def test_colorize_2color():
@@ -336,11 +379,15 @@ def test_exif_transpose():
                     check(orientation_im)
 
     # Orientation from "XML:com.adobe.xmp" info key
-    with Image.open("Tests/images/xmp_tags_orientation.png") as im:
-        assert im.getexif()[0x0112] == 3
+    for suffix in ("", "_exiftool"):
+        with Image.open("Tests/images/xmp_tags_orientation" + suffix + ".png") as im:
+            assert im.getexif()[0x0112] == 3
 
-        transposed_im = ImageOps.exif_transpose(im)
-        assert 0x0112 not in transposed_im.getexif()
+            transposed_im = ImageOps.exif_transpose(im)
+            assert 0x0112 not in transposed_im.getexif()
+
+            transposed_im._reload_exif()
+            assert 0x0112 not in transposed_im.getexif()
 
     # Orientation from "Raw profile type exif" info key
     # This test image has been manually hexedited from exif_imagemagick.png

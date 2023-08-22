@@ -10,16 +10,16 @@
  import os
  import re
  import struct
-@@ -39,7 +42,7 @@ TIFF_ROOT = None
+@@ -38,7 +41,7 @@ TIFF_ROOT = None
  ZLIB_ROOT = None
  FUZZING_BUILD = "LIB_FUZZING_ENGINE" in os.environ
  
--if sys.platform == "win32" and sys.version_info >= (3, 11):
-+if host_platform == "win32" and sys.version_info >= (3, 11):
+-if sys.platform == "win32" and sys.version_info >= (3, 12):
++if host_platform == "win32" and sys.version_info >= (3, 12):
      import atexit
  
      atexit.register(
-@@ -151,7 +154,7 @@ def _dbg(s, tp=None):
+@@ -150,7 +153,7 @@ def _dbg(s, tp=None):
  def _find_library_dirs_ldconfig():
      # Based on ctypes.util from Python 2
  
@@ -28,7 +28,7 @@
          if struct.calcsize("l") == 4:
              machine = os.uname()[4] + "-32"
          else:
-@@ -173,7 +176,7 @@ def _find_library_dirs_ldconfig():
+@@ -172,7 +175,7 @@ def _find_library_dirs_ldconfig():
          env["LC_ALL"] = "C"
          env["LANG"] = "C"
  
@@ -37,9 +37,9 @@
          args = ["/sbin/ldconfig", "-r"]
          expr = r".* => (.*)"
          env = {}
-@@ -405,6 +408,38 @@ class pil_build_ext(build_ext):
-                 self.extensions.remove(extension)
-                 break
+@@ -431,6 +434,38 @@ class pil_build_ext(build_ext):
+                 sdk_path = commandlinetools_sdk_path
+         return sdk_path
  
 +    def add_gcc_paths(self):
 +        gcc = sysconfig.get_config_var('CC')
@@ -76,7 +76,7 @@
      def build_extensions(self):
  
          library_dirs = []
-@@ -480,7 +515,7 @@ class pil_build_ext(build_ext):
+@@ -506,7 +541,7 @@ class pil_build_ext(build_ext):
          if self.disable_platform_guessing:
              pass
  
@@ -85,7 +85,7 @@
              # pythonX.Y.dll.a is in the /usr/lib/pythonX.Y/config directory
              _add_directory(
                  library_dirs,
-@@ -489,7 +524,7 @@ class pil_build_ext(build_ext):
+@@ -515,7 +550,7 @@ class pil_build_ext(build_ext):
                  ),
              )
  
@@ -94,7 +94,7 @@
              # attempt to make sure we pick freetype2 over other versions
              _add_directory(include_dirs, "/sw/include/freetype2")
              _add_directory(include_dirs, "/sw/lib/freetype2/include")
-@@ -545,13 +580,13 @@ class pil_build_ext(build_ext):
+@@ -563,13 +598,13 @@ class pil_build_ext(build_ext):
                  _add_directory(library_dirs, os.path.join(sdk_path, "usr", "lib"))
                  _add_directory(include_dirs, os.path.join(sdk_path, "usr", "include"))
          elif (
@@ -112,8 +112,8 @@
                  "ANDROID_ROOT", None
              ):
                  # termux support for android.
-@@ -562,11 +597,11 @@ class pil_build_ext(build_ext):
-                     library_dirs, os.path.join(os.environ["ANDROID_ROOT"], "lib")
+@@ -584,11 +619,11 @@ class pil_build_ext(build_ext):
+                     ),
                  )
  
 -        elif sys.platform.startswith("netbsd"):
@@ -126,7 +126,7 @@
              _add_directory(library_dirs, "/opt/local/lib")
              _add_directory(include_dirs, "/opt/local/include")
  
-@@ -582,7 +617,7 @@ class pil_build_ext(build_ext):
+@@ -604,7 +639,7 @@ class pil_build_ext(build_ext):
              # alpine, at least
              _add_directory(library_dirs, "/lib")
  
@@ -135,7 +135,7 @@
              # on Windows, look for the OpenJPEG libraries in the location that
              # the official installer puts them
              program_files = os.environ.get("ProgramFiles", "")
-@@ -617,7 +652,7 @@ class pil_build_ext(build_ext):
+@@ -639,7 +674,7 @@ class pil_build_ext(build_ext):
              if _find_include_file(self, "zlib.h"):
                  if _find_library_file(self, "z"):
                      feature.zlib = "z"
@@ -144,7 +144,7 @@
                      feature.zlib = "zlib"  # alternative name
  
          if feature.want("jpeg"):
-@@ -625,7 +660,7 @@ class pil_build_ext(build_ext):
+@@ -647,7 +682,7 @@ class pil_build_ext(build_ext):
              if _find_include_file(self, "jpeglib.h"):
                  if _find_library_file(self, "jpeg"):
                      feature.jpeg = "jpeg"
@@ -153,7 +153,7 @@
                      feature.jpeg = "libjpeg"  # alternative name
  
          feature.openjpeg_version = None
-@@ -681,7 +716,7 @@ class pil_build_ext(build_ext):
+@@ -703,7 +738,7 @@ class pil_build_ext(build_ext):
              if _find_include_file(self, "tiff.h"):
                  if _find_library_file(self, "tiff"):
                      feature.tiff = "tiff"
@@ -162,7 +162,7 @@
                      self, "libtiff"
                  ):
                      feature.tiff = "libtiff"
-@@ -799,7 +834,7 @@ class pil_build_ext(build_ext):
+@@ -821,7 +856,7 @@ class pil_build_ext(build_ext):
          if feature.jpeg2000:
              libs.append(feature.jpeg2000)
              defs.append(("HAVE_OPENJPEG", None))
@@ -171,7 +171,7 @@
                  defs.append(("OPJ_STATIC", None))
          if feature.zlib:
              libs.append(feature.zlib)
-@@ -810,7 +845,7 @@ class pil_build_ext(build_ext):
+@@ -832,7 +867,7 @@ class pil_build_ext(build_ext):
          if feature.tiff:
              libs.append(feature.tiff)
              defs.append(("HAVE_LIBTIFF", None))
@@ -180,7 +180,7 @@
                  # This define needs to be defined if-and-only-if it was defined
                  # when compiling LibTIFF. LibTIFF doesn't expose it in `tiffconf.h`,
                  # so we have to guess; by default it is defined in all Windows builds.
-@@ -819,13 +854,13 @@ class pil_build_ext(build_ext):
+@@ -841,13 +876,13 @@ class pil_build_ext(build_ext):
          if feature.xcb:
              libs.append(feature.xcb)
              defs.append(("HAVE_XCB", None))
@@ -196,7 +196,7 @@
              and sys.version_info < (3, 9)
              and not (PLATFORM_PYPY or PLATFORM_MINGW)
          ):
-@@ -863,7 +898,7 @@ class pil_build_ext(build_ext):
+@@ -885,7 +920,7 @@ class pil_build_ext(build_ext):
  
          if feature.lcms:
              extra = []
@@ -205,16 +205,16 @@
                  extra.extend(["user32", "gdi32"])
              self._update_extension("PIL._imagingcms", [feature.lcms] + extra)
          else:
-@@ -882,7 +917,7 @@ class pil_build_ext(build_ext):
+@@ -904,7 +939,7 @@ class pil_build_ext(build_ext):
          else:
              self._remove_extension("PIL._webp")
  
--        tk_libs = ["psapi"] if sys.platform == "win32" else []
-+        tk_libs = ["psapi"] if host_platform == "win32" else []
+-        tk_libs = ["psapi"] if sys.platform in ("win32", "cygwin") else []
++        tk_libs = ["psapi"] if host_platform in ("win32", "cygwin") else []
          self._update_extension("PIL._imagingtk", tk_libs)
  
          build_ext.build_extensions(self)
-@@ -899,7 +934,7 @@ class pil_build_ext(build_ext):
+@@ -921,7 +956,7 @@ class pil_build_ext(build_ext):
          print("-" * 68)
          print(f"version      Pillow {PILLOW_VERSION}")
          v = sys.version.split("[")

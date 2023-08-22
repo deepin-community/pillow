@@ -10,15 +10,16 @@ def test_sanity():
     palette = ImagePalette.ImagePalette("RGB", list(range(256)) * 3)
     assert len(palette.colors) == 256
 
-    with pytest.raises(ValueError):
-        ImagePalette.ImagePalette("RGB", list(range(256)) * 3, 10)
+    with pytest.warns(DeprecationWarning):
+        with pytest.raises(ValueError):
+            ImagePalette.ImagePalette("RGB", list(range(256)) * 3, 10)
 
 
 def test_reload():
-    im = Image.open("Tests/images/hopper.gif")
-    original = im.copy()
-    im.palette.dirty = 1
-    assert_image_equal(im.convert("RGB"), original.convert("RGB"))
+    with Image.open("Tests/images/hopper.gif") as im:
+        original = im.copy()
+        im.palette.dirty = 1
+        assert_image_equal(im.convert("RGB"), original.convert("RGB"))
 
 
 def test_getcolor():
@@ -47,6 +48,16 @@ def test_getcolor():
     # Test unknown color specifier
     with pytest.raises(ValueError):
         palette.getcolor("unknown")
+
+
+def test_getcolor_rgba_color_rgb_palette():
+    palette = ImagePalette.ImagePalette("RGB")
+
+    # Opaque RGBA colors are converted
+    assert palette.getcolor((0, 0, 0, 255)) == palette.getcolor((0, 0, 0))
+
+    with pytest.raises(ValueError):
+        palette.getcolor((0, 0, 0, 128))
 
 
 @pytest.mark.parametrize(

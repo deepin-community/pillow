@@ -48,12 +48,8 @@ def img_string_normalize(im):
     return img_to_string(string_to_img(im))
 
 
-def assert_img_equal(A, B):
-    assert img_to_string(A) == img_to_string(B)
-
-
-def assert_img_equal_img_string(A, Bstring):
-    assert img_to_string(A) == img_string_normalize(Bstring)
+def assert_img_equal_img_string(a, b_string):
+    assert img_to_string(a) == img_string_normalize(b_string)
 
 
 def test_str_to_img():
@@ -69,14 +65,16 @@ def create_lut():
 
 
 # create_lut()
-def test_lut():
-    for op in ("corner", "dilation4", "dilation8", "erosion4", "erosion8", "edge"):
-        lb = ImageMorph.LutBuilder(op_name=op)
-        assert lb.get_lut() is None
+@pytest.mark.parametrize(
+    "op", ("corner", "dilation4", "dilation8", "erosion4", "erosion8", "edge")
+)
+def test_lut(op):
+    lb = ImageMorph.LutBuilder(op_name=op)
+    assert lb.get_lut() is None
 
-        lut = lb.build_lut()
-        with open(f"Tests/images/{op}.lut", "rb") as f:
-            assert lut == bytearray(f.read())
+    lut = lb.build_lut()
+    with open(f"Tests/images/{op}.lut", "rb") as f:
+        assert lut == bytearray(f.read())
 
 
 def test_no_operator_loaded():

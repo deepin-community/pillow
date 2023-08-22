@@ -27,25 +27,35 @@ def test_sanity():
         "HSV",
     )
 
-    for mode in modes:
-        im = hopper(mode)
-        for mode in modes:
-            convert(im, mode)
+    for input_mode in modes:
+        im = hopper(input_mode)
+        for output_mode in modes:
+            convert(im, output_mode)
 
         # Check 0
-        im = Image.new(mode, (0, 0))
-        for mode in modes:
-            convert(im, mode)
+        im = Image.new(input_mode, (0, 0))
+        for output_mode in modes:
+            convert(im, output_mode)
+
+
+def test_unsupported_conversion():
+    im = hopper()
+    with pytest.raises(ValueError):
+        im.convert("INVALID")
 
 
 def test_default():
 
     im = hopper("P")
-    assert_image(im, "P", im.size)
-    im = im.convert()
-    assert_image(im, "RGB", im.size)
-    im = im.convert()
-    assert_image(im, "RGB", im.size)
+    assert im.mode == "P"
+    converted_im = im.convert()
+    assert_image(converted_im, "RGB", im.size)
+    converted_im = im.convert()
+    assert_image(converted_im, "RGB", im.size)
+
+    im.info["transparency"] = 0
+    converted_im = im.convert()
+    assert_image(converted_im, "RGBA", im.size)
 
 
 # ref https://github.com/python-pillow/Pillow/issues/274
@@ -66,10 +76,22 @@ def test_16bit():
     with Image.open("Tests/images/16bit.cropped.tif") as im:
         _test_float_conversion(im)
 
+    for color in (65535, 65536):
+        im = Image.new("I", (1, 1), color)
+        im_i16 = im.convert("I;16")
+        assert im_i16.getpixel((0, 0)) == 65535
+
 
 def test_16bit_workaround():
     with Image.open("Tests/images/16bit.cropped.tif") as im:
         _test_float_conversion(im.convert("I"))
+
+
+def test_opaque():
+    alpha = hopper("P").convert("PA").getchannel("A")
+
+    solid = Image.new("L", (128, 128), 255)
+    assert_image_equal(alpha, solid)
 
 
 def test_rgba_p():
@@ -82,6 +104,13 @@ def test_rgba_p():
     assert_image_similar(im, comparable, 20)
 
 
+def test_rgba():
+    with Image.open("Tests/images/transparent.png") as im:
+        assert im.mode == "RGBA"
+
+        assert_image_similar(im.convert("RGBa").convert("RGB"), im.convert("RGB"), 1.5)
+
+
 def test_trns_p(tmp_path):
     im = hopper("P")
     im.info["transparency"] = 0
@@ -89,7 +118,7 @@ def test_trns_p(tmp_path):
     f = str(tmp_path / "temp.png")
 
     im_l = im.convert("L")
-    assert im_l.info["transparency"] == 0  # undone
+    assert im_l.info["transparency"] == 1  # undone
     im_l.save(f)
 
     im_rgb = im.convert("RGB")
@@ -100,18 +129,22 @@ def test_trns_p(tmp_path):
 # ref https://github.com/python-pillow/Pillow/issues/664
 
 
-def test_trns_p_rgba():
+@pytest.mark.parametrize("mode", ("LA", "PA", "RGBA"))
+def test_trns_p_transparency(mode):
     # Arrange
     im = hopper("P")
     im.info["transparency"] = 128
 
     # Act
-    im_rgba = im.convert("RGBA")
+    converted_im = im.convert(mode)
 
     # Assert
-    assert "transparency" not in im_rgba.info
-    # https://github.com/python-pillow/Pillow/issues/2702
-    assert im_rgba.palette is None
+    assert "transparency" not in converted_im.info
+    if mode == "PA":
+        assert converted_im.palette is not None
+    else:
+        # https://github.com/python-pillow/Pillow/issues/2702
+        assert converted_im.palette is None
 
 
 def test_trns_l(tmp_path):
@@ -119,6 +152,10 @@ def test_trns_l(tmp_path):
     im.info["transparency"] = 128
 
     f = str(tmp_path / "temp.png")
+
+    im_la = im.convert("LA")
+    assert "transparency" not in im_la.info
+    im_la.save(f)
 
     im_rgb = im.convert("RGB")
     assert im_rgb.info["transparency"] == (128, 128, 128)  # undone
@@ -128,7 +165,7 @@ def test_trns_l(tmp_path):
     assert "transparency" in im_p.info
     im_p.save(f)
 
-    im_p = im.convert("P", palette=Image.ADAPTIVE)
+    im_p = im.convert("P", palette=Image.Palette.ADAPTIVE)
     assert "transparency" in im_p.info
     im_p.save(f)
 
@@ -151,15 +188,29 @@ def test_trns_RGB(tmp_path):
     assert "transparency" not in im_rgba.info
     im_rgba.save(f)
 
-    im_p = pytest.warns(UserWarning, im.convert, "P", palette=Image.ADAPTIVE)
+    im_p = pytest.warns(UserWarning, im.convert, "P", palette=Image.Palette.ADAPTIVE)
     assert "transparency" not in im_p.info
     im_p.save(f)
 
     im = Image.new("RGB", (1, 1))
     im.info["transparency"] = im.getpixel((0, 0))
-    im_p = im.convert("P", palette=Image.ADAPTIVE)
+    im_p = im.convert("P", palette=Image.Palette.ADAPTIVE)
     assert im_p.info["transparency"] == im_p.getpixel((0, 0))
     im_p.save(f)
+
+
+@pytest.mark.parametrize("convert_mode", ("L", "LA", "I"))
+def test_l_macro_rounding(convert_mode):
+    for mode in ("P", "PA"):
+        im = Image.new(mode, (1, 1))
+        im.palette.getcolor((0, 1, 2))
+
+        converted_im = im.convert(convert_mode)
+        px = converted_im.load()
+        converted_color = px[0, 0]
+        if convert_mode == "LA":
+            converted_color = converted_color[0]
+        assert converted_color == 1
 
 
 def test_gif_with_rgba_palette_to_p():
@@ -182,6 +233,37 @@ def test_p_la():
     comparable = im.convert("P").convert("LA").getchannel("A")
 
     assert_image_similar(alpha, comparable, 5)
+
+
+def test_p2pa_alpha():
+    with Image.open("Tests/images/tiny.png") as im:
+        assert im.mode == "P"
+
+        im_pa = im.convert("PA")
+    assert im_pa.mode == "PA"
+
+    im_a = im_pa.getchannel("A")
+    for x in range(4):
+        alpha = 255 if x > 1 else 0
+        for y in range(4):
+            assert im_a.getpixel((x, y)) == alpha
+
+
+def test_p2pa_palette():
+    with Image.open("Tests/images/tiny.png") as im:
+        im_pa = im.convert("PA")
+    assert im_pa.getpalette() == im.getpalette()
+
+
+@pytest.mark.parametrize("mode", ("RGB", "RGBA", "RGBX"))
+def test_rgb_lab(mode):
+    im = Image.new(mode, (1, 1))
+    converted_im = im.convert("LAB")
+    assert converted_im.getpixel((0, 0)) == (0, 128, 128)
+
+    im = Image.new("LAB", (1, 1), (255, 0, 0))
+    converted_im = im.convert(mode)
+    assert converted_im.getpixel((0, 0))[:3] == (0, 255, 255)
 
 
 def test_matrix_illegal_conversion():
@@ -216,36 +298,33 @@ def test_matrix_wrong_mode():
         im.convert(mode="L", matrix=matrix)
 
 
-def test_matrix_xyz():
-    def matrix_convert(mode):
-        # Arrange
-        im = hopper("RGB")
-        im.info["transparency"] = (255, 0, 0)
-        # fmt: off
-        matrix = (
-            0.412453, 0.357580, 0.180423, 0,
-            0.212671, 0.715160, 0.072169, 0,
-            0.019334, 0.119193, 0.950227, 0)
-        # fmt: on
-        assert im.mode == "RGB"
+@pytest.mark.parametrize("mode", ("RGB", "L"))
+def test_matrix_xyz(mode):
+    # Arrange
+    im = hopper("RGB")
+    im.info["transparency"] = (255, 0, 0)
+    # fmt: off
+    matrix = (
+        0.412453, 0.357580, 0.180423, 0,
+        0.212671, 0.715160, 0.072169, 0,
+        0.019334, 0.119193, 0.950227, 0)
+    # fmt: on
+    assert im.mode == "RGB"
 
-        # Act
-        # Convert an RGB image to the CIE XYZ colour space
-        converted_im = im.convert(mode=mode, matrix=matrix)
+    # Act
+    # Convert an RGB image to the CIE XYZ colour space
+    converted_im = im.convert(mode=mode, matrix=matrix)
 
-        # Assert
-        assert converted_im.mode == mode
-        assert converted_im.size == im.size
-        with Image.open("Tests/images/hopper-XYZ.png") as target:
-            if converted_im.mode == "RGB":
-                assert_image_similar(converted_im, target, 3)
-                assert converted_im.info["transparency"] == (105, 54, 4)
-            else:
-                assert_image_similar(converted_im, target.getchannel(0), 1)
-                assert converted_im.info["transparency"] == 105
-
-    matrix_convert("RGB")
-    matrix_convert("L")
+    # Assert
+    assert converted_im.mode == mode
+    assert converted_im.size == im.size
+    with Image.open("Tests/images/hopper-XYZ.png") as target:
+        if converted_im.mode == "RGB":
+            assert_image_similar(converted_im, target, 3)
+            assert converted_im.info["transparency"] == (105, 54, 4)
+        else:
+            assert_image_similar(converted_im, target.getchannel(0), 1)
+            assert converted_im.info["transparency"] == 105
 
 
 def test_matrix_identity():

@@ -29,7 +29,7 @@
  * 1995-09-12 fl  Created
  * 1996-04-08 fl  Ready for release
  * 1997-05-09 fl  Use command instead of image type
- * 2001-03-18 fl  Initialize alpha layer pointer (struct changed in 8.3)
+ * 2001-03-18 fl  Initialize alpha layer pointer (struct changed in Tk 8.3)
  * 2003-04-23 fl  Fixed building for Tk 8.4.1 and later (Jack Jansen)
  * 2004-06-24 fl  Fixed building for Tk 8.4.6 and later.
  *
@@ -116,7 +116,7 @@ PyImagingPhotoPut(
         block.offset[1] = 1;
         block.offset[2] = 2;
         if (strcmp(im->mode, "RGBA") == 0) {
-            block.offset[3] = 3; /* alpha (or reserved, under 8.2) */
+            block.offset[3] = 3; /* alpha (or reserved, under Tk 8.2) */
         } else {
             block.offset[3] = 0; /* no alpha */
         }
@@ -219,7 +219,7 @@ TkImaging_Init(Tcl_Interp *interp) {
 
 #define TKINTER_FINDER "PIL._tkinter_finder"
 
-#if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
+#if defined(_WIN32) || defined(__WIN32__) || defined(WIN32) || defined(__CYGWIN__)
 
 /*
  * On Windows, we can't load the tkinter module to get the Tcl or Tk symbols,
@@ -364,17 +364,6 @@ load_tkinter_funcs(void) {
  * tkinter dynamic library (module).
  */
 
-/* From module __file__ attribute to char *string for dlopen. */
-char *
-fname2char(PyObject *fname) {
-    PyObject *bytes;
-    bytes = PyUnicode_EncodeFSDefault(fname);
-    if (bytes == NULL) {
-        return NULL;
-    }
-    return PyBytes_AsString(bytes);
-}
-
 #include <dlfcn.h>
 
 void *
@@ -442,7 +431,7 @@ load_tkinter_funcs(void) {
     int ret = -1;
     void *main_program, *tkinter_lib;
     char *tkinter_libname;
-    PyObject *pModule = NULL, *pString = NULL;
+    PyObject *pModule = NULL, *pString = NULL, *pBytes = NULL;
 
     /* Try loading from the main program namespace first */
     main_program = dlopen(NULL, RTLD_LAZY);
@@ -462,7 +451,12 @@ load_tkinter_funcs(void) {
     if (pString == NULL) {
         goto exit;
     }
-    tkinter_libname = fname2char(pString);
+    /* From module __file__ attribute to char *string for dlopen. */
+    pBytes = PyUnicode_EncodeFSDefault(pString);
+    if (pBytes == NULL) {
+        goto exit;
+    }
+    tkinter_libname = PyBytes_AsString(pBytes);
     if (tkinter_libname == NULL) {
         goto exit;
     }
@@ -478,6 +472,7 @@ exit:
     dlclose(main_program);
     Py_XDECREF(pModule);
     Py_XDECREF(pString);
+    Py_XDECREF(pBytes);
     return ret;
 }
 #endif /* end not Windows */
