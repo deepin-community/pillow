@@ -52,7 +52,7 @@ https://www.cazabon.com\n\
 
 */
 
-/* known to-do list with current version:
+/* known to-do list:
 
    Verify that PILmode->littleCMStype conversion in findLCMStype is correct for all
    PIL modes (it probably isn't for the more obscure ones)
@@ -116,7 +116,7 @@ cms_profile_open(PyObject *self, PyObject *args) {
 }
 
 static PyObject *
-cms_profile_fromstring(PyObject *self, PyObject *args) {
+cms_profile_frombytes(PyObject *self, PyObject *args) {
     cmsHPROFILE hProfile;
 
     char *pProfile;
@@ -143,7 +143,7 @@ cms_profile_tobytes(PyObject *self, PyObject *args) {
     cmsHPROFILE *profile;
 
     PyObject *ret;
-    if (!PyArg_ParseTuple(args, "O", &CmsProfile)) {
+    if (!PyArg_ParseTuple(args, "O!", &CmsProfile_Type, &CmsProfile)) {
         return NULL;
     }
 
@@ -201,8 +201,8 @@ cms_transform_new(cmsHTRANSFORM transform, char *mode_in, char *mode_out) {
 
     self->transform = transform;
 
-    strcpy(self->mode_in, mode_in);
-    strcpy(self->mode_out, mode_out);
+    strncpy(self->mode_in, mode_in, 8);
+    strncpy(self->mode_out, mode_out, 8);
 
     return (PyObject *)self;
 }
@@ -242,10 +242,9 @@ findLCMStype(char *PILmode) {
         // LabX equivalent like ALab, but not reversed -- no #define in lcms2
         return (COLORSPACE_SH(PT_LabV2) | CHANNELS_SH(3) | BYTES_SH(1) | EXTRA_SH(1));
     }
-
     else {
-        /* take a wild guess... but you probably should fail instead. */
-        return TYPE_GRAY_8; /* so there's no buffer overrun... */
+        /* take a wild guess... */
+        return TYPE_GRAY_8;
     }
 }
 
@@ -950,6 +949,8 @@ _is_intent_supported(CmsProfileObject *self, int clut) {
             return Py_None;
         }
         PyDict_SetItem(result, id, entry);
+        Py_DECREF(id);
+        Py_DECREF(entry);
     }
     return result;
 }
@@ -960,8 +961,7 @@ _is_intent_supported(CmsProfileObject *self, int clut) {
 static PyMethodDef pyCMSdll_methods[] = {
 
     {"profile_open", cms_profile_open, METH_VARARGS},
-    {"profile_frombytes", cms_profile_fromstring, METH_VARARGS},
-    {"profile_fromstring", cms_profile_fromstring, METH_VARARGS},
+    {"profile_frombytes", cms_profile_frombytes, METH_VARARGS},
     {"profile_tobytes", cms_profile_tobytes, METH_VARARGS},
 
     /* profile and transform functions */
@@ -1420,19 +1420,19 @@ static struct PyGetSetDef cms_profile_getsetters[] = {
     {NULL}};
 
 static PyTypeObject CmsProfile_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0) "PIL._imagingcms.CmsProfile", /*tp_name */
-    sizeof(CmsProfileObject),
-    0, /*tp_basicsize, tp_itemsize */
+    PyVarObject_HEAD_INIT(NULL, 0) "PIL.ImageCms.core.CmsProfile", /*tp_name*/
+    sizeof(CmsProfileObject),                                      /*tp_basicsize*/
+    0,                                                             /*tp_itemsize*/
     /* methods */
     (destructor)cms_profile_dealloc, /*tp_dealloc*/
-    0,                               /*tp_print*/
+    0,                               /*tp_vectorcall_offset*/
     0,                               /*tp_getattr*/
     0,                               /*tp_setattr*/
-    0,                               /*tp_compare*/
+    0,                               /*tp_as_async*/
     0,                               /*tp_repr*/
-    0,                               /*tp_as_number */
-    0,                               /*tp_as_sequence */
-    0,                               /*tp_as_mapping */
+    0,                               /*tp_as_number*/
+    0,                               /*tp_as_sequence*/
+    0,                               /*tp_as_mapping*/
     0,                               /*tp_hash*/
     0,                               /*tp_call*/
     0,                               /*tp_str*/
@@ -1472,19 +1472,19 @@ static struct PyGetSetDef cms_transform_getsetters[] = {
     {NULL}};
 
 static PyTypeObject CmsTransform_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0) "CmsTransform",
-    sizeof(CmsTransformObject),
-    0,
+    PyVarObject_HEAD_INIT(NULL, 0) "PIL.ImageCms.core.CmsTransform", /*tp_name*/
+    sizeof(CmsTransformObject),                                      /*tp_basicsize*/
+    0,                                                               /*tp_itemsize*/
     /* methods */
     (destructor)cms_transform_dealloc, /*tp_dealloc*/
-    0,                                 /*tp_print*/
+    0,                                 /*tp_vectorcall_offset*/
     0,                                 /*tp_getattr*/
     0,                                 /*tp_setattr*/
-    0,                                 /*tp_compare*/
+    0,                                 /*tp_as_async*/
     0,                                 /*tp_repr*/
-    0,                                 /*tp_as_number */
-    0,                                 /*tp_as_sequence */
-    0,                                 /*tp_as_mapping */
+    0,                                 /*tp_as_number*/
+    0,                                 /*tp_as_sequence*/
+    0,                                 /*tp_as_mapping*/
     0,                                 /*tp_hash*/
     0,                                 /*tp_call*/
     0,                                 /*tp_str*/
@@ -1510,14 +1510,15 @@ setup_module(PyObject *m) {
     PyObject *v;
     int vn;
 
-    CmsProfile_Type.tp_new = PyType_GenericNew;
-
     /* Ready object types */
     PyType_Ready(&CmsProfile_Type);
     PyType_Ready(&CmsTransform_Type);
 
     Py_INCREF(&CmsProfile_Type);
     PyModule_AddObject(m, "CmsProfile", (PyObject *)&CmsProfile_Type);
+
+    Py_INCREF(&CmsTransform_Type);
+    PyModule_AddObject(m, "CmsTransform", (PyObject *)&CmsTransform_Type);
 
     d = PyModule_GetDict(m);
 
@@ -1532,7 +1533,8 @@ setup_module(PyObject *m) {
     } else {
         v = PyUnicode_FromFormat("%d.%d", vn / 1000, (vn / 10) % 100);
     }
-    PyDict_SetItemString(d, "littlecms_version", v);
+    PyDict_SetItemString(d, "littlecms_version", v ? v : Py_None);
+    Py_XDECREF(v);
 
     return 0;
 }

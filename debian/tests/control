@@ -1,4 +1,5 @@
 Tests: selftest-py3
+Restrictions: allow-stderr
 Depends: @
 
 #Tests: upstream-py3
