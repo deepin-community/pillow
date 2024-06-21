@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # > pyroma .
 # ------------------------------
 # Checking .
@@ -7,9 +6,11 @@
 # Final rating: 10/10
 # Your cheese is so fresh most people think it's a cream: Mascarpone
 # ------------------------------
+from __future__ import annotations
 
 import os
 import re
+import shutil
 import struct
 import subprocess
 import sys
@@ -26,6 +27,9 @@ def get_version():
     return locals()["__version__"]
 
 
+configuration = {}
+
+
 PILLOW_VERSION = get_version()
 FREETYPE_ROOT = None
 HARFBUZZ_ROOT = None
@@ -38,7 +42,7 @@ TIFF_ROOT = None
 ZLIB_ROOT = None
 FUZZING_BUILD = "LIB_FUZZING_ENGINE" in os.environ
 
-if sys.platform == "win32" and sys.version_info >= (3, 12):
+if sys.platform == "win32" and sys.version_info >= (3, 13):
     import atexit
 
     atexit.register(
@@ -136,7 +140,6 @@ class RequiredDependencyException(Exception):
 
 
 PLATFORM_MINGW = os.name == "nt" and "GCC" in sys.version
-PLATFORM_PYPY = hasattr(sys, "pypy_version_info")
 
 
 def _dbg(s, tp=None):
@@ -150,6 +153,7 @@ def _dbg(s, tp=None):
 def _find_library_dirs_ldconfig():
     # Based on ctypes.util from Python 2
 
+    ldconfig = "ldconfig" if shutil.which("ldconfig") else "/sbin/ldconfig"
     if sys.platform.startswith("linux") or sys.platform.startswith("gnu"):
         if struct.calcsize("l") == 4:
             machine = os.uname()[4] + "-32"
@@ -166,14 +170,14 @@ def _find_library_dirs_ldconfig():
 
         # Assuming GLIBC's ldconfig (with option -p)
         # Alpine Linux uses musl that can't print cache
-        args = ["/sbin/ldconfig", "-p"]
+        args = [ldconfig, "-p"]
         expr = rf".*\({abi_type}.*\) => (.*)"
         env = dict(os.environ)
         env["LC_ALL"] = "C"
         env["LANG"] = "C"
 
     elif sys.platform.startswith("freebsd"):
-        args = ["/sbin/ldconfig", "-r"]
+        args = [ldconfig, "-r"]
         expr = r".* => (.*)"
         env = {}
 
@@ -242,7 +246,9 @@ def _find_include_dir(self, dirname, include):
             return subdir
 
 
-def _cmd_exists(cmd):
+def _cmd_exists(cmd: str) -> bool:
+    if "PATH" not in os.environ:
+        return False
     return any(
         os.access(os.path.join(path, cmd), os.X_OK)
         for path in os.environ["PATH"].split(os.pathsep)
@@ -263,18 +269,16 @@ def _pkg_config(name):
             if not DEBUG:
                 command_libs.append("--silence-errors")
                 command_cflags.append("--silence-errors")
-            libs = (
+            libs = re.split(
+                r"(^|\s+)-L",
                 subprocess.check_output(command_libs, stderr=stderr)
                 .decode("utf8")
-                .strip()
-                .replace("-L", "")
-            )
-            cflags = (
-                subprocess.check_output(command_cflags)
-                .decode("utf8")
-                .strip()
-                .replace("-I", "")
-            )
+                .strip(),
+            )[::2][1:]
+            cflags = re.split(
+                r"(^|\s+)-I",
+                subprocess.check_output(command_cflags).decode("utf8").strip(),
+            )[::2][1:]
             return libs, cflags
         except Exception:
             pass
@@ -332,15 +336,24 @@ class pil_build_ext(build_ext):
         + [("add-imaging-libs=", None, "Add libs to _imaging build")]
     )
 
+    @staticmethod
+    def check_configuration(option, value):
+        return True if value in configuration.get(option, []) else None
+
     def initialize_options(self):
-        self.disable_platform_guessing = None
+        self.disable_platform_guessing = self.check_configuration(
+            "platform-guessing", "disable"
+        )
         self.add_imaging_libs = ""
         build_ext.initialize_options(self)
         for x in self.feature:
-            setattr(self, f"disable_{x}", None)
-            setattr(self, f"enable_{x}", None)
+            setattr(self, f"disable_{x}", self.check_configuration(x, "disable"))
+            setattr(self, f"enable_{x}", self.check_configuration(x, "enable"))
         for x in ("raqm", "fribidi"):
-            setattr(self, f"vendor_{x}", None)
+            setattr(self, f"vendor_{x}", self.check_configuration(x, "vendor"))
+        if self.check_configuration("debug", "true"):
+            self.debug = True
+        self.parallel = configuration.get("parallel", [None])[-1]
 
     def finalize_options(self):
         build_ext.finalize_options(self)
@@ -430,7 +443,6 @@ class pil_build_ext(build_ext):
         return sdk_path
 
     def build_extensions(self):
-
         library_dirs = []
         include_dirs = []
 
@@ -440,17 +452,17 @@ class pil_build_ext(build_ext):
 
         #
         # add configured kits
-        for root_name, lib_name in dict(
-            JPEG_ROOT="libjpeg",
-            JPEG2K_ROOT="libopenjp2",
-            TIFF_ROOT=("libtiff-5", "libtiff-4"),
-            ZLIB_ROOT="zlib",
-            FREETYPE_ROOT="freetype2",
-            HARFBUZZ_ROOT="harfbuzz",
-            FRIBIDI_ROOT="fribidi",
-            LCMS_ROOT="lcms2",
-            IMAGEQUANT_ROOT="libimagequant",
-        ).items():
+        for root_name, lib_name in {
+            "JPEG_ROOT": "libjpeg",
+            "JPEG2K_ROOT": "libopenjp2",
+            "TIFF_ROOT": ("libtiff-5", "libtiff-4"),
+            "ZLIB_ROOT": "zlib",
+            "FREETYPE_ROOT": "freetype2",
+            "HARFBUZZ_ROOT": "harfbuzz",
+            "FRIBIDI_ROOT": "fribidi",
+            "LCMS_ROOT": "lcms2",
+            "IMAGEQUANT_ROOT": "libimagequant",
+        }.items():
             root = globals()[root_name]
 
             if root is None and root_name in os.environ:
@@ -473,8 +485,16 @@ class pil_build_ext(build_ext):
             else:
                 lib_root = include_root = root
 
-            _add_directory(library_dirs, lib_root)
-            _add_directory(include_dirs, include_root)
+            if lib_root is not None:
+                if not isinstance(lib_root, (tuple, list)):
+                    lib_root = (lib_root,)
+                for lib_dir in lib_root:
+                    _add_directory(library_dirs, lib_dir)
+            if include_root is not None:
+                if not isinstance(include_root, (tuple, list)):
+                    include_root = (include_root,)
+                for include_dir in include_root:
+                    _add_directory(include_dirs, include_dir)
 
         # respect CFLAGS/CPPFLAGS/LDFLAGS
         for k in ("CFLAGS", "CPPFLAGS", "LDFLAGS"):
@@ -506,6 +526,7 @@ class pil_build_ext(build_ext):
 
         elif sys.platform == "cygwin":
             # pythonX.Y.dll.a is in the /usr/lib/pythonX.Y/config directory
+            self.compiler.shared_lib_extension = ".dll.a"
             _add_directory(
                 library_dirs,
                 os.path.join(
@@ -560,6 +581,9 @@ class pil_build_ext(build_ext):
             if sdk_path:
                 _add_directory(library_dirs, os.path.join(sdk_path, "usr", "lib"))
                 _add_directory(include_dirs, os.path.join(sdk_path, "usr", "include"))
+
+                for extension in self.extensions:
+                    extension.extra_compile_args = ["-Wno-nullability-completeness"]
         elif (
             sys.platform.startswith("linux")
             or sys.platform.startswith("gnu")
@@ -567,9 +591,7 @@ class pil_build_ext(build_ext):
         ):
             for dirname in _find_library_dirs_ldconfig():
                 _add_directory(library_dirs, dirname)
-            if sys.platform.startswith("linux") and os.environ.get(
-                "ANDROID_ROOT", None
-            ):
+            if sys.platform.startswith("linux") and os.environ.get("ANDROID_ROOT"):
                 # termux support for android.
                 # system libraries (zlib) are installed in /system/lib
                 # headers are at $PREFIX/include
@@ -680,10 +702,6 @@ class pil_build_ext(build_ext):
                 # Add the directory to the include path so we can include
                 # <openjpeg.h> rather than having to cope with the versioned
                 # include path
-                # FIXME (melvyn-sopacua):
-                # At this point it's possible that best_path is already in
-                # self.compiler.include_dirs. Should investigate how that is
-                # possible.
                 _add_directory(self.compiler.include_dirs, best_path, 0)
                 feature.jpeg2000 = "openjp2"
                 feature.openjpeg_version = ".".join(str(x) for x in best_version)
@@ -813,6 +831,15 @@ class pil_build_ext(build_ext):
 
         libs = self.add_imaging_libs.split()
         defs = []
+        if feature.tiff:
+            libs.append(feature.tiff)
+            defs.append(("HAVE_LIBTIFF", None))
+            if sys.platform == "win32":
+                # This define needs to be defined if-and-only-if it was defined
+                # when compiling LibTIFF. LibTIFF doesn't expose it in `tiffconf.h`,
+                # so we have to guess; by default it is defined in all Windows builds.
+                # See #4237, #5243, #5359 for more information.
+                defs.append(("USE_WIN32_FILEIO", None))
         if feature.jpeg:
             libs.append(feature.jpeg)
             defs.append(("HAVE_LIBJPEG", None))
@@ -827,15 +854,6 @@ class pil_build_ext(build_ext):
         if feature.imagequant:
             libs.append(feature.imagequant)
             defs.append(("HAVE_LIBIMAGEQUANT", None))
-        if feature.tiff:
-            libs.append(feature.tiff)
-            defs.append(("HAVE_LIBTIFF", None))
-            if sys.platform == "win32":
-                # This define needs to be defined if-and-only-if it was defined
-                # when compiling LibTIFF. LibTIFF doesn't expose it in `tiffconf.h`,
-                # so we have to guess; by default it is defined in all Windows builds.
-                # See #4237, #5243, #5359 for more information.
-                defs.append(("USE_WIN32_FILEIO", None))
         if feature.xcb:
             libs.append(feature.xcb)
             defs.append(("HAVE_XCB", None))
@@ -844,14 +862,7 @@ class pil_build_ext(build_ext):
         if struct.unpack("h", b"\0\1")[0] == 1:
             defs.append(("WORDS_BIGENDIAN", None))
 
-        if (
-            sys.platform == "win32"
-            and sys.version_info < (3, 9)
-            and not (PLATFORM_PYPY or PLATFORM_MINGW)
-        ):
-            defs.append(("PILLOW_VERSION", f'"\\"{PILLOW_VERSION}\\""'))
-        else:
-            defs.append(("PILLOW_VERSION", f'"{PILLOW_VERSION}"'))
+        defs.append(("PILLOW_VERSION", f'"{PILLOW_VERSION}"'))
 
         self._update_extension("PIL._imaging", libs, defs)
 
@@ -913,7 +924,6 @@ class pil_build_ext(build_ext):
         self.summary_report(feature)
 
     def summary_report(self, feature):
-
         print("-" * 68)
         print("PIL SETUP SUMMARY")
         print("-" * 68)
@@ -989,9 +999,14 @@ ext_modules = [
     Extension("PIL._imagingmorph", ["src/_imagingmorph.c"]),
 ]
 
+
+# parse configuration from _custom_build/backend.py
+while sys.argv[-1].startswith("--pillow-configuration="):
+    _, key, value = sys.argv.pop().split("=", 2)
+    configuration.setdefault(key, []).append(value)
+
 try:
     setup(
-        version=PILLOW_VERSION,
         cmdclass={"build_ext": pil_build_ext},
         ext_modules=ext_modules,
         zip_safe=not (debug_build() or PLATFORM_MINGW),

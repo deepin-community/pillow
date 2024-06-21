@@ -1,3 +1,43 @@
+pillow (10.3.0-2) unstable; urgency=medium
+
+  * Allow stderr in autopkg tests, deprecation warning for Pillow 12.
+
+ -- Matthias Klose <doko@debian.org>  Wed, 03 Apr 2024 09:03:08 +0200
+
+pillow (10.3.0-1) unstable; urgency=medium
+
+  * New upstream version.
+  * Update watch file.
+
+ -- Matthias Klose <doko@debian.org>  Tue, 02 Apr 2024 17:53:35 +0200
+
+pillow (10.2.0-1) unstable; urgency=medium
+
+  * New upstream version. Addresses CVE-2023-50447. Closes: #1061172.
+
+ -- Matthias Klose <doko@debian.org>  Sat, 20 Jan 2024 10:47:10 +0100
+
+pillow (10.1.0-1) unstable; urgency=medium
+
+  * New upstream version.
+  * Depend on media-types instead of mime-support. Closes: #987500.
+
+ -- Matthias Klose <doko@debian.org>  Tue, 31 Oct 2023 13:24:15 +0100
+
+pillow (10.0.0-1) unstable; urgency=medium
+
+  * New upstream version.
+
+ -- Matthias Klose <doko@debian.org>  Wed, 05 Jul 2023 18:58:54 +0200
+
+pillow (9.5.0-1) unstable; urgency=medium
+
+  * New upstream version.
+  * Bump standards version.
+  * debian/patches/pkg-config-multiarch.diff: Remove, applied upstream.
+
+ -- Matthias Klose <doko@debian.org>  Mon, 12 Jun 2023 09:30:20 +0200
+
 pillow (9.4.0-1.1) unstable; urgency=medium
 
   * Non-maintainer upload.
