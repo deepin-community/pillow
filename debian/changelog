@@ -1,3 +1,9 @@
+pillow (10.3.0-2deepin1) unstable; urgency=medium
+
+  * chore: bump freetype dev package name to libfreetype-dev
+
+ -- hudeng <hudeng@deepin.org>  Mon, 11 Nov 2024 11:07:59 +0800
+
 pillow (10.3.0-2) unstable; urgency=medium
 
   * Allow stderr in autopkg tests, deprecation warning for Pillow 12.
