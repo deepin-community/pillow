@@ -284,7 +284,7 @@ class TestCoreResampleAlphaCorrect:
             used_colors = {px[x, y][0] for x in range(i.size[0])}
             assert 256 == len(used_colors), (
                 "All colors should be present in resized image. "
-                f"Only {len(used_colors)} on {y} line."
+                f"Only {len(used_colors)} on line {y}."
             )
 
     @pytest.mark.xfail(reason="Current implementation isn't precise enough")
@@ -445,7 +445,7 @@ class TestCoreResampleBox:
         im.resize((32, 32), resample, (20, 20, 100, 20))
 
         with pytest.raises(TypeError, match="must be sequence of length 4"):
-            im.resize((32, 32), resample, (im.width, im.height))
+            im.resize((32, 32), resample, (im.width, im.height))  # type: ignore[arg-type]
 
         with pytest.raises(ValueError, match="can't be negative"):
             im.resize((32, 32), resample, (-20, 20, 100, 100))

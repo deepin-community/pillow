@@ -719,6 +719,21 @@ ImagingUnpackBGRA15(UINT8 *out, const UINT8 *in, int pixels) {
 }
 
 void
+ImagingUnpackBGRA15Z(UINT8 *out, const UINT8 *in, int pixels) {
+    int i, pixel;
+    /* RGB, rearranged channels, 5/5/5/1 bits per pixel, inverted alpha */
+    for (i = 0; i < pixels; i++) {
+        pixel = in[0] + (in[1] << 8);
+        out[B] = (pixel & 31) * 255 / 31;
+        out[G] = ((pixel >> 5) & 31) * 255 / 31;
+        out[R] = ((pixel >> 10) & 31) * 255 / 31;
+        out[A] = ~((pixel >> 15) * 255);
+        out += 4;
+        in += 2;
+    }
+}
+
+void
 ImagingUnpackRGB16(UINT8 *out, const UINT8 *in, int pixels) {
     int i, pixel;
     /* RGB, 5/6/5 bits per pixel */
@@ -784,6 +799,17 @@ ImagingUnpackBGRX(UINT8 *_out, const UINT8 *in, int pixels) {
     /* RGB, reversed bytes with padding */
     for (i = 0; i < pixels; i++) {
         UINT32 iv = MAKE_UINT32(in[2], in[1], in[0], 255);
+        memcpy(_out, &iv, sizeof(iv));
+        in += 4;
+        _out += 4;
+    }
+}
+
+static void
+ImagingUnpackBGXR(UINT8 *_out, const UINT8 *in, int pixels) {
+    int i;
+    for (i = 0; i < pixels; i++) {
+        UINT32 iv = MAKE_UINT32(in[3], in[1], in[0], 255);
         memcpy(_out, &iv, sizeof(iv));
         in += 4;
         _out += 4;
@@ -1086,6 +1112,17 @@ unpackBGRA16B(UINT8 *_out, const UINT8 *in, int pixels) {
         UINT32 iv = MAKE_UINT32(in[4], in[2], in[0], in[6]);
         memcpy(_out, &iv, sizeof(iv));
         in += 8;
+        _out += 4;
+    }
+}
+
+static void
+unpackBGAR(UINT8 *_out, const UINT8 *in, int pixels) {
+    int i;
+    for (i = 0; i < pixels; i++) {
+        UINT32 iv = MAKE_UINT32(in[3], in[1], in[0], in[2]);
+        memcpy(_out, &iv, sizeof(iv));
+        in += 4;
         _out += 4;
     }
 }
@@ -1415,90 +1452,90 @@ band3I(UINT8 *out, const UINT8 *in, int pixels) {
 }
 
 static void
-band016B(UINT8* out, const UINT8* in, int pixels)
-{
+band016B(UINT8 *out, const UINT8 *in, int pixels) {
     int i;
     /* band 0 only, big endian */
     for (i = 0; i < pixels; i++) {
         out[0] = in[0];
-        out += 4; in += 2;
+        out += 4;
+        in += 2;
     }
 }
 
 static void
-band116B(UINT8* out, const UINT8* in, int pixels)
-{
+band116B(UINT8 *out, const UINT8 *in, int pixels) {
     int i;
     /* band 1 only, big endian */
     for (i = 0; i < pixels; i++) {
         out[1] = in[0];
-        out += 4; in += 2;
+        out += 4;
+        in += 2;
     }
 }
 
 static void
-band216B(UINT8* out, const UINT8* in, int pixels)
-{
+band216B(UINT8 *out, const UINT8 *in, int pixels) {
     int i;
     /* band 2 only, big endian */
     for (i = 0; i < pixels; i++) {
         out[2] = in[0];
-        out += 4; in += 2;
+        out += 4;
+        in += 2;
     }
 }
 
 static void
-band316B(UINT8* out, const UINT8* in, int pixels)
-{
+band316B(UINT8 *out, const UINT8 *in, int pixels) {
     int i;
     /* band 3 only, big endian */
     for (i = 0; i < pixels; i++) {
         out[3] = in[0];
-        out += 4; in += 2;
+        out += 4;
+        in += 2;
     }
 }
 
 static void
-band016L(UINT8* out, const UINT8* in, int pixels)
-{
+band016L(UINT8 *out, const UINT8 *in, int pixels) {
     int i;
     /* band 0 only, little endian */
     for (i = 0; i < pixels; i++) {
         out[0] = in[1];
-        out += 4; in += 2;
+        out += 4;
+        in += 2;
     }
 }
 
 static void
-band116L(UINT8* out, const UINT8* in, int pixels)
-{
+band116L(UINT8 *out, const UINT8 *in, int pixels) {
     int i;
     /* band 1 only, little endian */
     for (i = 0; i < pixels; i++) {
         out[1] = in[1];
-        out += 4; in += 2;
+        out += 4;
+        in += 2;
     }
 }
 
 static void
-band216L(UINT8* out, const UINT8* in, int pixels)
-{
+band216L(UINT8 *out, const UINT8 *in, int pixels) {
     int i;
     /* band 2 only, little endian */
     for (i = 0; i < pixels; i++) {
         out[2] = in[1];
-        out += 4; in += 2;
+        out += 4;
+        in += 2;
     }
 }
 
 static void
-band316L(UINT8* out, const UINT8* in, int pixels)
-{
+band316L(UINT8 *out, const UINT8 *in, int pixels) {
     int i;
     /* band 3 only, little endian */
     for (i = 0; i < pixels; i++) {
         out[3] = in[1];
-        out += 4; in += 2;
+        out += 4;
+        in += 2;
     }
 }
 
@@ -1516,7 +1553,7 @@ static struct {
 
     /* flags: "I" inverted data; "R" reversed bit order; "B" big
        endian byte order (default is little endian); "L" line
-       interleave, "S" signed, "F" floating point */
+       interleave, "S" signed, "F" floating point, "Z" inverted alpha */
 
     /* exception: rawmodes "I" and "F" are always native endian byte order */
 
@@ -1560,6 +1597,7 @@ static struct {
     {"P", "P", 8, copy1},
     {"P", "P;R", 8, unpackLR},
     {"P", "L", 8, copy1},
+    {"P", "PX", 16, unpackL16B},
 
     /* palette w. alpha */
     {"PA", "PA", 16, unpackLA},
@@ -1577,13 +1615,18 @@ static struct {
     {"RGB", "BGR;15", 16, ImagingUnpackBGR15},
     {"RGB", "RGB;16", 16, ImagingUnpackRGB16},
     {"RGB", "BGR;16", 16, ImagingUnpackBGR16},
+    {"RGB", "RGBX;16L", 64, unpackRGBA16L},
+    {"RGB", "RGBX;16B", 64, unpackRGBA16B},
     {"RGB", "RGB;4B", 16, ImagingUnpackRGB4B},
     {"RGB", "BGR;5", 16, ImagingUnpackBGR15}, /* compat */
     {"RGB", "RGBX", 32, copy4},
     {"RGB", "RGBX;L", 32, unpackRGBAL},
+    {"RGB", "RGBXX", 40, copy4skip1},
+    {"RGB", "RGBXXX", 48, copy4skip2},
     {"RGB", "RGBA;L", 32, unpackRGBAL},
     {"RGB", "RGBA;15", 16, ImagingUnpackRGBA15},
     {"RGB", "BGRX", 32, ImagingUnpackBGRX},
+    {"RGB", "BGXR", 32, ImagingUnpackBGXR},
     {"RGB", "XRGB", 32, ImagingUnpackXRGB},
     {"RGB", "XBGR", 32, ImagingUnpackXBGR},
     {"RGB", "YCC;P", 24, ImagingUnpackYCC},
@@ -1618,12 +1661,14 @@ static struct {
     {"RGBA", "RGBA;L", 32, unpackRGBAL},
     {"RGBA", "RGBA;15", 16, ImagingUnpackRGBA15},
     {"RGBA", "BGRA;15", 16, ImagingUnpackBGRA15},
+    {"RGBA", "BGRA;15Z", 16, ImagingUnpackBGRA15Z},
     {"RGBA", "RGBA;4B", 16, ImagingUnpackRGBA4B},
     {"RGBA", "RGBA;16L", 64, unpackRGBA16L},
     {"RGBA", "RGBA;16B", 64, unpackRGBA16B},
     {"RGBA", "BGRA", 32, unpackBGRA},
     {"RGBA", "BGRA;16L", 64, unpackBGRA16L},
     {"RGBA", "BGRA;16B", 64, unpackBGRA16B},
+    {"RGBA", "BGAR", 32, unpackBGAR},
     {"RGBA", "ARGB", 32, unpackARGB},
     {"RGBA", "ABGR", 32, unpackABGR},
     {"RGBA", "YCCA;P", 32, ImagingUnpackYCCA},
@@ -1661,7 +1706,6 @@ static struct {
     {"RGB", "R;16N", 16, band016L},
     {"RGB", "G;16N", 16, band116L},
     {"RGB", "B;16N", 16, band216L},
-
 
     {"RGBA", "R;16N", 16, band016L},
     {"RGBA", "G;16N", 16, band116L},

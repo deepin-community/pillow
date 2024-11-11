@@ -100,6 +100,37 @@ ImageMath eval()
 ``ImageMath.eval()`` has been deprecated. Use :py:meth:`~PIL.ImageMath.lambda_eval` or
 :py:meth:`~PIL.ImageMath.unsafe_eval` instead.
 
+BGR;15, BGR 16 and BGR;24
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. deprecated:: 10.4.0
+
+The experimental BGR;15, BGR;16 and BGR;24 modes have been deprecated.
+
+Non-image modes in ImageCms
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. deprecated:: 10.4.0
+
+The use in :py:mod:`.ImageCms` of input modes and output modes that are not Pillow
+image modes has been deprecated. Defaulting to "L" or "1" if the mode cannot be mapped
+is also deprecated.
+
+Support for LibTIFF earlier than 4
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. deprecated:: 10.4.0
+
+Support for LibTIFF earlier than version 4 has been deprecated.
+Upgrade to a newer version of LibTIFF instead.
+
+ImageDraw.getdraw hints parameter
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. deprecated:: 10.4.0
+
+The ``hints`` parameter in :py:meth:`~PIL.ImageDraw.getdraw()` has been deprecated.
+
 Removed features
 ----------------
 
@@ -264,7 +295,7 @@ Previously, the ``size`` methods returned a ``height`` that included the vertica
 offset of the text, while the new ``bbox`` methods distinguish this as a ``top``
 offset.
 
-.. image:: ./example/size_vs_bbox.png
+.. image:: ./example/size_vs_bbox.webp
     :alt: In bbox methods, top measures the vertical distance above the text, while bottom measures that plus the vertical distance of the text itself. In size methods, height also measures the vertical distance above the text plus the vertical distance of the text itself.
     :align: center
 

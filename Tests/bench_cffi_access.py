@@ -32,9 +32,8 @@ def timer(func, label, *args) -> None:
             break
     endtime = time.time()
     print(
-        "{}: completed {} iterations in {:.4f}s, {:.6f}s per iteration".format(
-            label, x + 1, endtime - starttime, (endtime - starttime) / (x + 1.0)
-        )
+        f"{label}: completed {x + 1} iterations in {endtime - starttime:.4f}s, "
+        f"{(endtime - starttime) / (x + 1.0):.6f}s per iteration"
     )
 
 
@@ -45,6 +44,7 @@ def test_direct() -> None:
     caccess = im.im.pixel_access(False)
     access = PyAccess.new(im, False)
 
+    assert access is not None
     assert caccess[(0, 0)] == access[(0, 0)]
 
     print(f"Size: {im.width}x{im.height}")

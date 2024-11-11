@@ -1,3 +1,9 @@
+pillow (10.4.0-1) unstable; urgency=medium
+
+  * New upstream version.
+
+ -- Matthias Klose <doko@debian.org>  Wed, 10 Jul 2024 09:55:27 +0200
+
 pillow (10.3.0-2) unstable; urgency=medium
 
   * Allow stderr in autopkg tests, deprecation warning for Pillow 12.

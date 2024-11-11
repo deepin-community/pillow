@@ -202,23 +202,27 @@ class TestImageFile:
 
 
 class MockPyDecoder(ImageFile.PyDecoder):
+    last: MockPyDecoder
+
     def __init__(self, mode: str, *args: Any) -> None:
         MockPyDecoder.last = self
 
         super().__init__(mode, *args)
 
-    def decode(self, buffer):
+    def decode(self, buffer: bytes) -> tuple[int, int]:
         # eof
         return -1, 0
 
 
 class MockPyEncoder(ImageFile.PyEncoder):
+    last: MockPyEncoder | None
+
     def __init__(self, mode: str, *args: Any) -> None:
         MockPyEncoder.last = self
 
         super().__init__(mode, *args)
 
-    def encode(self, buffer):
+    def encode(self, bufsize: int) -> tuple[int, int, bytes]:
         return 1, 1, b""
 
     def cleanup(self) -> None:
@@ -315,6 +319,7 @@ class TestPyEncoder(CodecsTest):
             im, fp, [("MOCK", (xoff, yoff, xoff + xsize, yoff + ysize), 0, "RGB")]
         )
 
+        assert MockPyEncoder.last
         assert MockPyEncoder.last.state.xoff == xoff
         assert MockPyEncoder.last.state.yoff == yoff
         assert MockPyEncoder.last.state.xsize == xsize
@@ -329,6 +334,7 @@ class TestPyEncoder(CodecsTest):
         fp = BytesIO()
         ImageFile._save(im, fp, [("MOCK", None, 0, "RGB")])
 
+        assert MockPyEncoder.last
         assert MockPyEncoder.last.state.xoff == 0
         assert MockPyEncoder.last.state.yoff == 0
         assert MockPyEncoder.last.state.xsize == 200
@@ -345,7 +351,9 @@ class TestPyEncoder(CodecsTest):
             ImageFile._save(
                 im, fp, [("MOCK", (xoff, yoff, -10, yoff + ysize), 0, "RGB")]
             )
-        assert MockPyEncoder.last.cleanup_called
+        last: MockPyEncoder | None = MockPyEncoder.last
+        assert last
+        assert last.cleanup_called
 
         with pytest.raises(ValueError):
             ImageFile._save(
@@ -375,7 +383,7 @@ class TestPyEncoder(CodecsTest):
     def test_encode(self) -> None:
         encoder = ImageFile.PyEncoder(None)
         with pytest.raises(NotImplementedError):
-            encoder.encode(None)
+            encoder.encode(0)
 
         bytes_consumed, errcode = encoder.encode_to_pyfd()
         assert bytes_consumed == 0

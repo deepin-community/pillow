@@ -4,14 +4,14 @@
  	-rm -rf $(BUILDDIR)/*
  
  install-sphinx:
--	$(PYTHON) -m pip install --quiet furo olefile sphinx sphinx-copybutton sphinx-inline-tabs sphinx-removed-in sphinxext-opengraph
-+	: $(PYTHON) -m pip install --quiet furo olefile sphinx sphinx-copybutton sphinx-inline-tabs sphinx-removed-in sphinxext-opengraph
+-	$(PYTHON) -m pip install --quiet furo olefile sphinx sphinx-copybutton sphinx-inline-tabs sphinxext-opengraph
++	: $(PYTHON) -m pip install --quiet furo olefile sphinx sphinx-copybutton sphinx-inline-tabs sphinxext-opengraph
  
  .PHONY: html
  html:
 --- a/docs/conf.py
 +++ b/docs/conf.py
-@@ -132,7 +132,7 @@ nitpick_ignore = [
+@@ -128,7 +128,7 @@ nitpicky = True
  # The theme to use for HTML and HTML Help pages.  See the documentation for
  # a list of builtin themes.
  

@@ -427,7 +427,6 @@ error:
 
 PyObject *
 PyImaging_GrabClipboardWin32(PyObject *self, PyObject *args) {
-    int clip;
     HANDLE handle = NULL;
     int size;
     void *data;
@@ -619,7 +618,7 @@ windowCallback(HWND wnd, UINT message, WPARAM wParam, LPARAM lParam) {
     if (callback) {
         /* restore thread state */
         PyEval_SaveThread();
-        PyThreadState_Swap(threadstate);
+        PyThreadState_Swap(current_threadstate);
     }
 
     return status;
@@ -717,7 +716,7 @@ PyImaging_DrawWmf(PyObject *self, PyObject *args) {
     HDC dc;
     RECT rect;
     PyObject *buffer = NULL;
-    char *ptr;
+    void *ptr;
 
     char *data;
     Py_ssize_t datasize;
