@@ -1,3 +1,12 @@
+pillow (10.3.0-2deepin1) unstable; urgency=medium
+
+  * Fix CVE-2026-25990: Validate tile offsets in decode.c and encode.c
+    to prevent     out-of-bounds write when loading specially crafted
+    PSD images.          Upstream: https://github.com/python-
+    pillow/Pillow/commit/54ba4db542ad3c7b918812a4e2d69c27735a3199
+
+ -- deepin-ci-robot <packages@deepin.org>  Thu, 07 May 2026 18:37:48 +0800
+
 pillow (10.3.0-2) unstable; urgency=medium
 
   * Allow stderr in autopkg tests, deprecation warning for Pillow 12.
