@@ -258,16 +258,6 @@ void
 ImagingPackRGB(UINT8 *out, const UINT8 *in, int pixels) {
     int i = 0;
     /* RGB triplets */
-#ifdef __sparc
-    /* SPARC CPUs cannot read integers from nonaligned addresses. */
-    for (; i < pixels; i++) {
-        out[0] = in[R];
-        out[1] = in[G];
-        out[2] = in[B];
-        out += 3;
-        in += 4;
-    }
-#else
     for (; i < pixels - 1; i++) {
         memcpy(out, in + i * 4, 4);
         out += 3;
@@ -278,7 +268,6 @@ ImagingPackRGB(UINT8 *out, const UINT8 *in, int pixels) {
         out[2] = in[i * 4 + B];
         out += 3;
     }
-#endif
 }
 
 void
@@ -339,7 +328,7 @@ ImagingPackXBGR(UINT8 *out, const UINT8 *in, int pixels) {
 void
 ImagingPackBGRA(UINT8 *out, const UINT8 *in, int pixels) {
     int i;
-    /* BGRX, reversed bytes with right padding */
+    /* BGRA, reversed bytes with right alpha */
     for (i = 0; i < pixels; i++) {
         out[0] = in[B];
         out[1] = in[G];
@@ -353,7 +342,7 @@ ImagingPackBGRA(UINT8 *out, const UINT8 *in, int pixels) {
 void
 ImagingPackABGR(UINT8 *out, const UINT8 *in, int pixels) {
     int i;
-    /* XBGR, reversed bytes with left padding */
+    /* ABGR, reversed bytes with left alpha */
     for (i = 0; i < pixels; i++) {
         out[0] = in[A];
         out[1] = in[B];

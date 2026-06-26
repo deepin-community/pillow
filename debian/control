@@ -13,10 +13,13 @@ Build-Depends: debhelper (>= 11), tk-dev, dpkg-dev (>= 1.16.1~),
   libtiff5-dev | libtiff-dev, libwebp-dev, libraqm-dev,
   libimagequant-dev,
   libopenjp2-7-dev,
-Build-Depends-Indep: python3-sphinx, python3-sphinx-rtd-theme,
+Build-Depends-Indep: python3-doc,
+  python3-sphinx, python3-sphinx-rtd-theme,
   python3-sphinx-issues, python3-sphinx-copybutton,
-  python3-sphinx-inline-tabs,
-Standards-Version: 4.6.2
+  python3-sphinx-inline-tabs, python3-sphinxext-opengraph,
+  furo,
+Rules-Requires-Root: binary-targets
+Standards-Version: 4.7.0
 Homepage: http://python-pillow.github.io/
 XS-Testsuite: autopkgtest
 

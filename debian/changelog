@@ -1,11 +1,62 @@
-pillow (10.3.0-2deepin1) unstable; urgency=medium
+pillow (11.1.0-5+deb13u3) trixie-security; urgency=medium
 
-  * Fix CVE-2026-25990: Validate tile offsets in decode.c and encode.c
-    to prevent     out-of-bounds write when loading specially crafted
-    PSD images.          Upstream: https://github.com/python-
-    pillow/Pillow/commit/54ba4db542ad3c7b918812a4e2d69c27735a3199
+  * CVE-2026-42308
+  * CVE-2026-42310
+  * CVE-2026-42311
 
- -- deepin-ci-robot <packages@deepin.org>  Thu, 07 May 2026 18:37:48 +0800
+ -- Moritz Mühlenhoff <jmm@debian.org>  Fri, 19 Jun 2026 20:11:46 +0200
+
+pillow (11.1.0-5+deb13u2) trixie-security; urgency=medium
+
+  * CVE-2026-40192
+
+ -- Moritz Mühlenhoff <jmm@debian.org>  Fri, 17 Apr 2026 00:02:02 +0200
+
+pillow (11.1.0-5+deb13u1) trixie-security; urgency=medium
+
+  * CVE-2026-25990 (Closes: #1127925)
+
+ -- Moritz Mühlenhoff <jmm@debian.org>  Wed, 18 Feb 2026 20:20:45 +0100
+
+pillow (11.1.0-5) unstable; urgency=medium
+
+  * Don't remove the pyproject.toml file.
+
+ -- Matthias Klose <doko@debian.org>  Thu, 06 Feb 2025 14:26:25 +0100
+
+pillow (11.1.0-4) unstable; urgency=medium
+
+  * Install Python files for arch-only builds. Closes: #1093826.
+
+ -- Matthias Klose <doko@debian.org>  Thu, 23 Jan 2025 11:32:24 +0100
+
+pillow (11.1.0-3) unstable; urgency=medium
+
+  * Fix indep-only build.
+
+ -- Matthias Klose <doko@debian.org>  Thu, 23 Jan 2025 05:34:00 +0100
+
+pillow (11.1.0-1) unstable; urgency=medium
+
+  * New upstream version.
+  * Build the docs, ignoring the warnings. Closes: #1091974.
+  * Bump standards version.
+
+ -- Matthias Klose <doko@debian.org>  Wed, 22 Jan 2025 13:58:23 +0100
+
+pillow (10.4.0-1.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Set `Rules-Requires-Root: binary-targets`.
+    (Closes: #1089414)
+
+ -- Niels Thykier <niels@thykier.net>  Thu, 02 Jan 2025 20:42:06 +0000
+
+pillow (10.4.0-1) unstable; urgency=medium
+
+  * New upstream version.
+
+ -- Matthias Klose <doko@debian.org>  Wed, 10 Jul 2024 09:55:27 +0200
 
 pillow (10.3.0-2) unstable; urgency=medium
 

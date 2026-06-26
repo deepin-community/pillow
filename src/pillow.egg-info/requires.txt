@@ -2,10 +2,9 @@
 [docs]
 furo
 olefile
-sphinx>=2.4
+sphinx>=8.1
 sphinx-copybutton
 sphinx-inline-tabs
-sphinx-removed-in
 sphinxext-opengraph
 
 [fpx]
@@ -16,7 +15,7 @@ olefile
 
 [tests]
 check-manifest
-coverage
+coverage>=7.4.2
 defusedxml
 markdown2
 olefile
@@ -25,6 +24,7 @@ pyroma
 pytest
 pytest-cov
 pytest-timeout
+trove-classifiers>=2024.10.12
 
 [typing]
 

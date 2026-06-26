@@ -1,0 +1,11 @@
+--- a/docs/conf.py
++++ b/docs/conf.py
+@@ -37,7 +37,7 @@ extensions = [
+     "sphinxext.opengraph",
+ ]
+ 
+-intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
++intersphinx_mapping = {"python": ("/usr/share/doc/python3/html", None)}
+ 
+ # The suffix(es) of source filenames.
+ # You can specify multiple suffix as a list of string:

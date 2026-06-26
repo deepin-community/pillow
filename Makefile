@@ -2,7 +2,6 @@
 
 .PHONY: clean
 clean:
-	python3 setup.py clean
 	rm src/PIL/*.so || true
 	rm -r build || true
 	find . -name __pycache__ | xargs rm -r || true
@@ -18,12 +17,10 @@ coverage:
 .PHONY: doc
 .PHONY: html
 doc html:
-	python3 -c "import PIL" > /dev/null 2>&1 || python3 -m pip install .
 	$(MAKE) -C docs html
 
 .PHONY: htmlview
 htmlview:
-	python3 -c "import PIL" > /dev/null 2>&1 || python3 -m pip install .
 	$(MAKE) -C docs htmlview
 
 .PHONY: doccheck
@@ -78,8 +75,6 @@ release-test:
 	python3 selftest.py
 	python3 -m pytest Tests
 	python3 -m pip install .
-	-rm dist/*.egg
-	-rmdir dist
 	python3 -m pytest -qq
 	python3 -m check_manifest
 	python3 -m pyroma .
@@ -120,4 +115,9 @@ lint-fix:
 	python3 -c "import black" > /dev/null 2>&1 || python3 -m pip install black
 	python3 -m black .
 	python3 -c "import ruff" > /dev/null 2>&1 || python3 -m pip install ruff
-	python3 -m ruff --fix .
+	python3 -m ruff check --fix .
+
+.PHONY: mypy
+mypy:
+	python3 -c "import tox" > /dev/null 2>&1 || python3 -m pip install tox
+	python3 -m tox -e mypy
