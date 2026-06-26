@@ -1,7 +1,12 @@
 toplevel-setup.py
 generate-webp-file
 js-script-file.diff
-no-sphinx-removed-in.diff
-no-sphinx-opengraph.diff
-no-sphinx-furo.diff
+no-sphinx-from-pip.diff
+no-sphinx-dater.diff
+no-sphinx-fail-on-warning.diff
+intersphinx-local.diff
 CVE-2026-25990.patch
+CVE-2026-40192.patch
+CVE-2026-42308.patch
+CVE-2026-42310.patch
+CVE-2026-42311.patch

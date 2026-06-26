@@ -1,0 +1,11 @@
+--- a/docs/Makefile
++++ b/docs/Makefile
+@@ -46,7 +46,7 @@ clean:
+ 	-rm -rf $(BUILDDIR)/*
+ 
+ install-sphinx:
+-	$(PYTHON) -m pip install -e ..[docs]
++	: $(PYTHON) -m pip install -e ..[docs]
+ 
+ .PHONY: html
+ html:

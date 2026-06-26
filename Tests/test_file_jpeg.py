@@ -70,7 +70,9 @@ class TestFileJpeg:
 
     def test_sanity(self) -> None:
         # internal version number
-        assert re.search(r"\d+\.\d+$", features.version_codec("jpg"))
+        version = features.version_codec("jpg")
+        assert version is not None
+        assert re.search(r"\d+\.\d+$", version)
 
         with Image.open(TEST_FILE) as im:
             im.load()
@@ -152,7 +154,7 @@ class TestFileJpeg:
             assert k > 0.9
 
     def test_rgb(self) -> None:
-        def getchannels(im: Image.Image) -> tuple[int, int, int]:
+        def getchannels(im: JpegImagePlugin.JpegImageFile) -> tuple[int, ...]:
             return tuple(v[0] for v in im.layer)
 
         im = hopper()
@@ -169,7 +171,7 @@ class TestFileJpeg:
         [TEST_FILE, "Tests/images/pil_sample_cmyk.jpg"],
     )
     def test_dpi(self, test_image_path: str) -> None:
-        def test(xdpi: int, ydpi: int | None = None):
+        def test(xdpi: int, ydpi: int | None = None) -> tuple[int, int] | None:
             with Image.open(test_image_path) as im:
                 im = self.roundtrip(im, dpi=(xdpi, ydpi or xdpi))
             return im.info.get("dpi")
@@ -178,6 +180,10 @@ class TestFileJpeg:
         assert test(300) == (300, 300)
         assert test(100, 200) == (100, 200)
         assert test(0) is None  # square pixels
+
+    def test_dpi_jfif_cm(self):
+        with Image.open("Tests/images/jfif_unit_cm.jpg") as im:
+            assert im.info["dpi"] == (2.54, 5.08)
 
     @mark_if_feature_version(
         pytest.mark.valgrind_known_error, "libjpeg_turbo", "2.0", reason="Known Failing"
@@ -441,7 +447,9 @@ class TestFileJpeg:
         assert_image(im1, im2.mode, im2.size)
 
     def test_subsampling(self) -> None:
-        def getsampling(im: Image.Image):
+        def getsampling(
+            im: JpegImagePlugin.JpegImageFile,
+        ) -> tuple[int, int, int, int, int, int]:
             layer = im.layer
             return layer[0][1:3] + layer[1][1:3] + layer[2][1:3]
 
@@ -537,12 +545,12 @@ class TestFileJpeg:
     @mark_if_feature_version(
         pytest.mark.valgrind_known_error, "libjpeg_turbo", "2.0", reason="Known Failing"
     )
-    def test_qtables(self, tmp_path: Path) -> None:
+    def test_qtables(self) -> None:
         def _n_qtables_helper(n: int, test_file: str) -> None:
+            b = BytesIO()
             with Image.open(test_file) as im:
-                f = str(tmp_path / "temp.jpg")
-                im.save(f, qtables=[[n] * 64] * n)
-            with Image.open(f) as im:
+                im.save(b, "JPEG", qtables=[[n] * 64] * n)
+            with Image.open(b) as im:
                 assert len(im.quantization) == n
                 reloaded = self.roundtrip(im, qtables="keep")
                 assert im.quantization == reloaded.quantization
@@ -697,7 +705,7 @@ class TestFileJpeg:
     def test_save_cjpeg(self, tmp_path: Path) -> None:
         with Image.open(TEST_FILE) as img:
             tempfile = str(tmp_path / "temp.jpg")
-            JpegImagePlugin._save_cjpeg(img, 0, tempfile)
+            JpegImagePlugin._save_cjpeg(img, BytesIO(), tempfile)
             # Default save quality is 75%, so a tiny bit of difference is alright
             assert_image_similar_tofile(img, tempfile, 17)
 
@@ -825,7 +833,7 @@ class TestFileJpeg:
         with Image.open("Tests/images/no-dpi-in-exif.jpg") as im:
             # Act / Assert
             # "When the image resolution is unknown, 72 [dpi] is designated."
-            # https://web.archive.org/web/20240227115053/https://exiv2.org/tags.html
+            # https://exiv2.org/tags.html
             assert im.info.get("dpi") == (72, 72)
 
     def test_invalid_exif(self) -> None:
@@ -846,6 +854,8 @@ class TestFileJpeg:
 
             out = str(tmp_path / "out.jpg")
             with warnings.catch_warnings():
+                warnings.simplefilter("error")
+
                 im.save(out, exif=exif)
 
         with Image.open(out) as reloaded:
@@ -868,7 +878,7 @@ class TestFileJpeg:
 
     def test_multiple_exif(self) -> None:
         with Image.open("Tests/images/multiple_exif.jpg") as im:
-            assert im.info["exif"] == b"Exif\x00\x00firstsecond"
+            assert im.getexif()[270] == "firstsecond"
 
     @mark_if_feature_version(
         pytest.mark.valgrind_known_error, "libjpeg_turbo", "2.0", reason="Known Failing"
@@ -915,24 +925,25 @@ class TestFileJpeg:
         with Image.open("Tests/images/icc-after-SOF.jpg") as im:
             assert im.info["icc_profile"] == b"profile"
 
-    def test_jpeg_magic_number(self) -> None:
+    def test_jpeg_magic_number(self, monkeypatch: pytest.MonkeyPatch) -> None:
         size = 4097
         buffer = BytesIO(b"\xFF" * size)  # Many xFF bytes
-        buffer.max_pos = 0
+        max_pos = 0
         orig_read = buffer.read
 
-        def read(n=-1):
+        def read(n: int | None = -1) -> bytes:
+            nonlocal max_pos
             res = orig_read(n)
-            buffer.max_pos = max(buffer.max_pos, buffer.tell())
+            max_pos = max(max_pos, buffer.tell())
             return res
 
-        buffer.read = read
+        monkeypatch.setattr(buffer, "read", read)
         with pytest.raises(UnidentifiedImageError):
             with Image.open(buffer):
                 pass
 
         # Assert the entire file has not been read
-        assert 0 < buffer.max_pos < size
+        assert 0 < max_pos < size
 
     def test_getxmp(self) -> None:
         with Image.open("Tests/images/xmp_test.jpg") as im:
@@ -943,6 +954,7 @@ class TestFileJpeg:
                 ):
                     assert im.getxmp() == {}
             else:
+                assert "xmp" in im.info
                 xmp = im.getxmp()
 
                 description = xmp["xmpmeta"]["RDF"]["Description"]
@@ -985,12 +997,34 @@ class TestFileJpeg:
             else:
                 assert im.getxmp() == {"xmpmeta": None}
 
+    def test_save_xmp(self, tmp_path: Path) -> None:
+        f = str(tmp_path / "temp.jpg")
+        im = hopper()
+        im.save(f, xmp=b"XMP test")
+        with Image.open(f) as reloaded:
+            assert reloaded.info["xmp"] == b"XMP test"
+
+            # Check that XMP is not saved from image info
+            reloaded.save(f)
+
+        with Image.open(f) as reloaded:
+            assert "xmp" not in reloaded.info
+
+        im.save(f, xmp=b"1" * 65504)
+        with Image.open(f) as reloaded:
+            assert reloaded.info["xmp"] == b"1" * 65504
+
+        with pytest.raises(ValueError):
+            im.save(f, xmp=b"1" * 65505)
+
     @pytest.mark.timeout(timeout=1)
     def test_eof(self) -> None:
         # Even though this decoder never says that it is finished
         # the image should still end when there is no new data
         class InfiniteMockPyDecoder(ImageFile.PyDecoder):
-            def decode(self, buffer: bytes) -> tuple[int, int]:
+            def decode(
+                self, buffer: bytes | Image.SupportsArrayInterface
+            ) -> tuple[int, int]:
                 return 0, 0
 
         Image.register_decoder("INFINITE", InfiniteMockPyDecoder)
@@ -1013,13 +1047,16 @@ class TestFileJpeg:
 
         # SOI, EOI
         for marker in b"\xff\xd8", b"\xff\xd9":
-            assert marker in data[1] and marker in data[2]
+            assert marker in data[1]
+            assert marker in data[2]
         # DHT, DQT
         for marker in b"\xff\xc4", b"\xff\xdb":
-            assert marker in data[1] and marker not in data[2]
+            assert marker in data[1]
+            assert marker not in data[2]
         # SOF0, SOS, APP0 (JFIF header)
         for marker in b"\xff\xc0", b"\xff\xda", b"\xff\xe0":
-            assert marker not in data[1] and marker in data[2]
+            assert marker not in data[1]
+            assert marker in data[2]
 
         with Image.open(BytesIO(data[0])) as interchange_im:
             with Image.open(BytesIO(data[1] + data[2])) as combined_im:
@@ -1027,8 +1064,10 @@ class TestFileJpeg:
 
     def test_repr_jpeg(self) -> None:
         im = hopper()
+        b = im._repr_jpeg_()
+        assert b is not None
 
-        with Image.open(BytesIO(im._repr_jpeg_())) as repr_jpeg:
+        with Image.open(BytesIO(b)) as repr_jpeg:
             assert repr_jpeg.format == "JPEG"
             assert_image_similar(im, repr_jpeg, 17)
 
@@ -1036,6 +1075,13 @@ class TestFileJpeg:
         im = hopper("F")
 
         assert im._repr_jpeg_() is None
+
+    def test_deprecation(self) -> None:
+        with Image.open(TEST_FILE) as im:
+            with pytest.warns(DeprecationWarning):
+                assert im.huffman_ac == {}
+            with pytest.warns(DeprecationWarning):
+                assert im.huffman_dc == {}
 
 
 @pytest.mark.skipif(not is_win32(), reason="Windows only")

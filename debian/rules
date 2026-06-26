@@ -2,10 +2,12 @@
 
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
+DPKG_EXPORT_BUILDFLAGS = 1
 
 PY3VERS	:= $(shell py3versions -vr)
 PY3VER	:= $(shell python3 -c 'import re, sys;print(re.match("^\d*\.\d*", sys.version).group())')
 
+include /usr/share/dpkg/buildflags.mk
 include /usr/share/python3/python.mk
 
 include /usr/share/dpkg/architecture.mk
@@ -23,7 +25,10 @@ build-indep: build build-doc-stamp
 build: build-stamp
 
 build-doc-stamp: build
-	-PYTHONPATH=$(CURDIR)/$(firstword $(wildcard build/lib.*)) $(MAKE) -C docs html
+	: # FIXME: do not ignore warnings ...
+#	-PYTHONPATH=$(CURDIR)/src:$(CURDIR)/$(lastword $(wildcard build/lib.*)) $(MAKE) -C docs html
+	(cd src; tar cf - PIL) | (cd $(lastword $(wildcard build/lib.*)); tar xf -)
+	-PYTHONPATH=$(CURDIR)/$(lastword $(wildcard build/lib.*)) $(MAKE) -C docs html
 	touch $@
 
 build-stamp: $(PY3VERS:%=build-stamp-python%) $(PY3VERS:%=check-stamp-python%)
@@ -104,6 +109,11 @@ install3-python%:
 		src/libImaging/ImPlatform.h \
 		src/libImaging/ImDib.h \
 		debian/python3-pil/$$incdir
+
+	: # FIXME: not installed anymore upstream?
+	mkdir -p debian/python3-pil/usr/lib/python3/$(call py_sitename_sh, $*)/PIL
+	(cd src; tar cf - PIL) \
+	  | (cd debian/python3-pil/usr/lib/python3/$(call py_sitename_sh, $*); tar xf -)
 
 	if `python$* -c "import sys; sys.exit(sys.version_info < (3,5))"`; \
 	then \

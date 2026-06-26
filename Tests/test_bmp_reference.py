@@ -22,6 +22,8 @@ def test_bad() -> None:
     for f in get_files("b"):
         # Assert that there is no unclosed file warning
         with warnings.catch_warnings():
+            warnings.simplefilter("error")
+
             try:
                 with Image.open(f) as im:
                     im.load()
@@ -44,6 +46,9 @@ def test_questionable() -> None:
         "pal8os2sp.bmp",
         "pal8rletrns.bmp",
         "rgb32bf-xbgr.bmp",
+        "rgba32.bmp",
+        "rgb32h52.bmp",
+        "rgba32h56.bmp",
     ]
     for f in get_files("q"):
         try:
